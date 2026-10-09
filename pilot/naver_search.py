@@ -53,7 +53,11 @@ def search(endpoint, query, start=1, display=100, sort="sim"):
     params = {"query": query, "display": display, "start": start, "sort": sort}
     for attempt in range(4):
         time.sleep(MIN_INTERVAL)
-        r = requests.get(BASE + endpoint, headers=headers, params=params, timeout=20)
+        try:
+            r = requests.get(BASE + endpoint, headers=headers, params=params, timeout=20)
+        except (requests.Timeout, requests.ConnectionError):  # 네트워크 오류는 대기 후 재시도
+            time.sleep(2 ** attempt * 2)
+            continue
         calls_today(1)
         if r.status_code == 200:
             return r.json()
@@ -63,6 +67,7 @@ def search(endpoint, query, start=1, display=100, sort="sim"):
             time.sleep(2 ** attempt)
             continue
         sys.exit(f"{r.status_code} {endpoint} '{query}': {r.text[:300]}")
+    sys.exit(f"네트워크 재시도 4회 소진: {endpoint} '{query}' start={start}. 다시 실행하면 이어서 수집한다.")
 
 
 def clean(s):
@@ -162,10 +167,14 @@ def collect(banks):
     for bank in banks:
         ep, sid, judge = bank["endpoint"], bank["source_id"], make_judge(bank)
         path = OUT / f"{sid}.jsonl"
-        seen = {json.loads(l)["link"] for l in path.open(encoding="utf-8")} if path.exists() else set()
+        prior = [json.loads(l) for l in path.open(encoding="utf-8")] if path.exists() else []
+        seen = {r["link"] for r in prior}
+        done = {(r["seed"], r["sort"]) for r in prior}  # ponytail: 중단된 마지막 시드는 일부만 들어 있을 수 있음
         with path.open("a", encoding="utf-8") as f:
             for q in bank["seeds"]:
                 for sort in bank.get("sorts", ["sim"]):
+                    if (q, sort) in done:
+                        continue
                     pages = fetched = kept = new_kept = low_streak = 0
                     stop = "exhausted"
                     for start in range(1, bank.get("max_pages", 10) * 100, 100):
@@ -204,6 +213,9 @@ def collect(banks):
                     print(f"{sid:10} {sort:4} p={r['precision']:.2f} new={new_kept:>4} pages={pages:>2} {stop:9} {r['class']:6} {q}")
         path = ROOT / "data" / f"seed_yield_{sid}.csv"
         rows = [r for r in yield_rows if r["source_id"] == sid]
+        if path.exists():  # 이어서 수집한 경우 기존 수율과 합친다
+            new_keys = {(r["seed"], r["sort"]) for r in rows}
+            rows = [r for r in csv.DictReader(path.open(encoding="utf-8-sig")) if (r["seed"], r["sort"]) not in new_keys] + rows
         if rows:
             with path.open("w", encoding="utf-8-sig", newline="") as fh:
                 w = csv.DictWriter(fh, fieldnames=list(rows[0]))
