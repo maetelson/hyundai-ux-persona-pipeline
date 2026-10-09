@@ -1,0 +1,29 @@
+source_id: naver_situation
+endpoints: [blog, cafearticle]
+layer: B
+relevance: relevance_situation.yaml
+source_notes: "B층: FoD 언급 없이 운전·차량 사용 상황의 불편·니즈. 코드북 v1 situation 코드별 기본 표현 × 접미어. 블로그는 본문 별도 수집 예정."
+max_pages: 10
+sorts: [sim, date]
+early_stop_low_yield_pages: 2
+early_stop_min_kept_ratio: 0.30   # B층은 차량 맥락만 보므로 기준을 높인다
+negative_terms: [운전연수, 도로연수, 대리운전]
+suffixes: ["", 불편, 고민]
+situation_bases:  # 코드북 v1 situation 코드 → 기본 표현 (2026-10-09 초안, count 결과로 정리)
+  S_PARK_TIGHT: [좁은 주차장, 주차장 문콕, 옆차 문콕, 주차하고 내리기, 아파트 주차 공간]
+  S_PARK_SKILL: [주차 초보, 평행주차, 기계식 주차장, 후진 주차, 주차 연습]
+  S_CHILD: [카시트 태우기, 아이 등원 차, 학원 픽업 차, 유모차 트렁크, 아이 차멀미]
+  S_FAMILY_SHARE: [와이프 운전, 남편 차 같이, 부모님 운전, 가족 차 같이 쓰기, 세컨카]
+  S_LONG_DRIVE: [장거리 운전, 고속도로 졸음, 명절 귀성길 운전, 출퇴근 정체, 장거리 출퇴근]
+  S_WEATHER: [겨울 차 예열, 여름 차 실내 온도, 차 성에 제거, 눈길 운전, 폭염 차량]
+  S_REMOTE_CTRL: [원격 시동, 원격 공조, 디지털키, 차 문 잠금 확인, 차량 위치 확인]
+  S_ENTERTAIN: [차에서 넷플릭스, 차에서 유튜브, 충전 대기 시간, 차박 영상, 차에서 음악]
+  S_PERSONAL: [차 실내 꾸미기, 엠비언트 라이트, 차량 커스텀, 계기판 화면, 차 감성 튜닝]
+  S_SECURITY: [차량 도난, 주차 중 블랙박스, 문콕 범인, 차량 털이, 주차 감시 모드]
+  S_EV: [전기차 충전 스트레스, 전기차 회생제동, 전기차 주행거리, 전기차 겨울, 충전소 찾기]
+  S_ADAS: [고속도로 주행보조, 차선 유지 보조, 반자율주행, 스마트 크루즈 컨트롤, 자율주행 체감]
+  S_REPLACE: [차 바꿀까, 차 교체 시기, 중고차로 팔기, 첫차 고민, 차 오래 타기]
+  S_COST: [자동차 유지비, 자동차 보험료 할인, 차 할부 부담, 기름값 부담, 차 옵션 가성비]
+  S_NAV: [순정 내비, 내비 업데이트, 티맵 순정 내비, 길안내 불편, 차량 음성인식]
+  S_MAINTAIN: [소모품 교체 주기, 엔진오일 교체, 차량 정기점검, 배터리 방전, 타이어 교체 시기]
+collect_min_p: {blog: 0.5, cafearticle: 0.0}  # count p@100 미만 시드는 수집 제외

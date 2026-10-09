@@ -4,7 +4,7 @@
   python pilot/naver_search.py count   config/seeds/naver_cafe.yaml config/seeds/naver_blog.yaml
   python pilot/naver_search.py collect config/seeds/naver_cafe.yaml config/seeds/naver_blog.yaml
   python pilot/naver_search.py rejudge config/seeds/naver_cafe.yaml config/seeds/naver_blog.yaml  # API 호출 없음
-산출: data/raw/naver/{source_id}.jsonl (kept 플래그 포함 전체), data/seed_yield.csv
+산출: data/raw/naver/{source_id}.jsonl (kept 플래그 포함 전체), data/seed_yield_{source_id}.csv, data/count_{source_id}.csv
 """
 import csv
 import html
@@ -22,7 +22,6 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "data" / "raw" / "naver"
 LEDGER = ROOT / "data" / "naver_calls.json"  # 일별 호출 수
-YIELD = ROOT / "data" / "seed_yield.csv"
 BASE = "https://naverapihub.apigw.ntruss.com/search/v1/"
 DAILY_BUDGET = int(os.getenv("NAVER_DAILY_BUDGET", "20000"))  # 공식 일 25,000보다 낮게
 MIN_INTERVAL = 0.1  # 10 RPS (공식 키당 50)
@@ -71,26 +70,43 @@ def clean(s):
 
 
 def load_bank(path):
+    """시드 파일 1개 → 엔드포인트별 bank 목록. situation_bases × suffixes 조합 시드도 펼친다."""
     bank = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
-    bank["seeds"] = [s["seed"] for s in bank.get("core_seeds", []) + bank.get("optional_templates", [])]
-    return bank
+    seed_code = {s["seed"]: s.get("code", "") for s in bank.get("core_seeds", []) + bank.get("optional_templates", [])}
+    for code, bases in (bank.get("situation_bases") or {}).items():
+        for base in bases:
+            for suf in bank.get("suffixes", [""]):
+                if suf and suf in base:  # '길안내 불편 불편' 방지
+                    continue
+                seed_code.setdefault(f"{base} {suf}".strip(), code)
+    bank["seeds"], bank["seed_code"] = list(seed_code), seed_code
+    eps = bank.get("endpoints") or [bank["endpoint"]]
+    banks = [{**bank, "endpoint": ep, "source_id": bank["source_id"] if len(eps) == 1 else f"{bank['source_id']}_{ep}"} for ep in eps]
+    for b in banks:  # count 결과가 있으면 정확도 미달 시드는 수집에서 뺀다
+        min_p = (b.get("collect_min_p") or {}).get(b["endpoint"], 0)
+        cnt = ROOT / "data" / f"count_{b['source_id']}.csv"
+        if min_p and cnt.exists():
+            ok = {r["seed"] for r in csv.DictReader(cnt.open(encoding="utf-8-sig")) if float(r["p_at_100"]) >= min_p}
+            b["seeds"] = [q for q in b["seeds"] if q in ok]
+    return banks
 
 
 def make_judge(bank):
-    rel = yaml.safe_load((ROOT / "config" / "relevance_fod.yaml").read_text(encoding="utf-8"))
-    strong, weak, car = (re.compile(rel[k]) for k in ("fod_strong", "fod_weak", "car"))
-    neg = [t for t in bank.get("negative_terms", [])]
+    """kept = negative 없음 AND (accept 일치 OR require 전부 일치)."""
+    rel = yaml.safe_load((ROOT / "config" / bank.get("relevance", "relevance_fod.yaml")).read_text(encoding="utf-8"))
+    accept = re.compile(rel["accept"]) if rel.get("accept") else None
+    require = {name: re.compile(pat) for name, pat in rel.get("require", {}).items()}
+    neg = list(bank.get("negative_terms", []))
     neg_any = re.compile(rel["negative_any"]) if rel.get("negative_any") else None
 
     def judge(text):
         if any(t in text for t in neg) or (neg_any and neg_any.search(text)):
             return False, "negative_term"
-        if strong.search(text):
+        if accept and accept.search(text):
             return True, ""
-        if not weak.search(text):
-            return False, "no_fod_term"
-        if not car.search(text):
-            return False, "no_car_context"
+        for name, pat in require.items():
+            if not pat.search(text):
+                return False, f"no_{name}"
         return True, ""
     return judge
 
@@ -121,13 +137,23 @@ def classify(precision, new_kept):
 
 
 def count(banks):
+    """시드당 1회 호출: total과 정확도순 상위 100건 정확도 → data/count_{source_id}.csv"""
     for bank in banks:
-        judge = make_judge(bank)
+        judge, rows = make_judge(bank), []
         print(f"== {bank['source_id']}")
         for q in bank["seeds"]:
             res = search(bank["endpoint"], q, display=100)
-            kept = sum(judge(judge_text(i))[0] for i in res["items"])
-            print(f"{res['total']:>9,}  p@100={kept / max(len(res['items']), 1):.2f}  {q}")
+            items = res.get("items", [])
+            p = sum(judge(judge_text(i))[0] for i in items) / max(len(items), 1)
+            rows.append({"seed": q, "code": bank["seed_code"].get(q, ""), "total": res["total"],
+                         "p_at_100": round(p, 2), "est_kept": round(p * min(res["total"], 1000))})
+            print(f"{res['total']:>10,}  p@100={p:.2f}  {q}")
+        path = ROOT / "data" / f"count_{bank['source_id']}.csv"
+        with path.open("w", encoding="utf-8-sig", newline="") as fh:
+            w = csv.DictWriter(fh, fieldnames=list(rows[0]))
+            w.writeheader()
+            w.writerows(rows)
+        print(f"→ {path.relative_to(ROOT)}  추정 회수(정확도순 1,000건 기준 합) {sum(r['est_kept'] for r in rows):,}")
 
 
 def collect(banks):
@@ -176,11 +202,14 @@ def collect(banks):
                                        "stop_reason": stop, "class": classify(precision, new_kept)})
                     r = yield_rows[-1]
                     print(f"{sid:10} {sort:4} p={r['precision']:.2f} new={new_kept:>4} pages={pages:>2} {stop:9} {r['class']:6} {q}")
-    with YIELD.open("w", encoding="utf-8-sig", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=list(yield_rows[0]))
-        w.writeheader()
-        w.writerows(yield_rows)
-    print(f"시드 수율 → {YIELD.relative_to(ROOT)}, 오늘 호출 {calls_today():,}")
+        path = ROOT / "data" / f"seed_yield_{sid}.csv"
+        rows = [r for r in yield_rows if r["source_id"] == sid]
+        if rows:
+            with path.open("w", encoding="utf-8-sig", newline="") as fh:
+                w = csv.DictWriter(fh, fieldnames=list(rows[0]))
+                w.writeheader()
+                w.writerows(rows)
+            print(f"시드 수율 → {path.relative_to(ROOT)}, 오늘 호출 {calls_today():,}")
 
 
 if __name__ == "__main__":
@@ -188,4 +217,4 @@ if __name__ == "__main__":
     if not os.getenv("NAVER_HUB_CLIENT_ID") or not os.getenv("NAVER_HUB_CLIENT_SECRET"):
         sys.exit(".env에 NAVER_HUB_CLIENT_ID / NAVER_HUB_CLIENT_SECRET를 넣어 주세요 (.env.example 참고)")
     mode, files = sys.argv[1], sys.argv[2:]
-    {"count": count, "collect": collect, "rejudge": rejudge}[mode]([load_bank(p) for p in files])
+    {"count": count, "collect": collect, "rejudge": rejudge}[mode]([b for p in files for b in load_bank(p)])
