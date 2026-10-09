@@ -1,0 +1,39 @@
+source_id: naver_cafe
+endpoint: cafearticle
+layer: A
+source_notes: "카페 스니펫은 질문·경험담 문체. 정확도 높음(2026-10-09 상위100 중앙 약 40%). 본문 없음, 작성일 없음."
+max_pages: 10            # 페이지당 100건, start 상한 1000
+sorts: [sim, date]
+early_stop_low_yield_pages: 2   # 연속 저수율 페이지 수
+early_stop_min_kept_ratio: 0.15 # 페이지 kept 비율이 이 미만이면 저수율
+negative_terms: [쇼핑커넥트, 쇼핑 커넥트, 브랜드커넥트, 배민커넥트, 테마주]
+core_seeds:  # p = 2026-10-09 정확도순 상위100 정확도
+  - {seed: 블루링크 스토어, reason: "스토어 인지·가입 질문 (p=.40)"}
+  - {seed: 기아 커넥트 스토어, reason: "기아 스토어 구매·이벤트 (p=.62)"}
+  - {seed: 현대 FoD, reason: "업계 용어 사용자 (p=.38)"}
+  - {seed: 차량 기능 구독, reason: "구독 반감·수용 담론 (p=.57)"}
+  - {seed: 자동차 기능 구독, reason: "같은 담론 다른 표현 (p=.47)"}
+  - {seed: 원격 스마트 주차 보조 구독, reason: "RSPA 구매 고민 (p=.45)"}
+  - {seed: 원격 스마트 주차 보조 후기, reason: "사용 경험 (p=.29)"}
+  - {seed: 원격 주차 보조 구매, reason: "구매 결정 (p=.40)"}
+  - {seed: RSPA 2 구독, reason: "정확 상품명 (p=.50, 모수 작음)"}
+  - {seed: 디스플레이 테마 구매, reason: "테마 구매 (p=.44)"}
+  - {seed: 기아 디스플레이 테마, reason: "기아 테마 반응 (p=.65)"}
+  - {seed: 현대 디스플레이 테마, reason: "현대 테마 반응 (p=.62)"}
+  - {seed: 포켓몬 디스플레이 테마, reason: "제휴 테마·차종 미지원 불만 (p=.37)"}
+  - {seed: 라이팅 패턴 구매, reason: "라이팅 FoD (p=.34)"}
+  - {seed: 스트리밍 플러스 블루링크, reason: "커넥티드 부가요금 (p=.24)"}
+  - {seed: 스마트 회생 시스템 플러스, reason: "EV FoD (p=.41)"}
+  - {seed: 블루링크 유료 전환, reason: "무료→유료 전환 순간 (p=.32)"}
+  - {seed: 블루링크 무료 기간 종료, reason: "전환 고민 (p=.37)"}
+  - {seed: 블루링크 연장, reason: "관리·연장 (p=.21)"}
+  - {seed: 커넥티드 서비스 요금, reason: "요금 장부 계산 (p=.58)"}
+  - {seed: BMW 열선 구독, reason: "HW 잠금 반감 기준점 (p=.72)"}
+  - {seed: 테슬라 FSD 구독, reason: "SW 진보 지불의향 기준점 (p=.54)"}
+optional_templates:  # 미측정. 수집 시 수율로 검증
+  - {seed: 블루링크 유료 해야 하나요, reason: "질문형 결정 순간"}
+  - {seed: 원격주차 써보신 분, reason: "질문형 사용 경험"}
+  - {seed: 차 팔면 블루링크, reason: "양도·귀속 순간"}
+retired_seeds:  # 2026-10-09 1차 수집 수율 noise → 제외
+  - {seed: 커넥트 스토어 구매, reason: "sim p=.12 신규 5, date p=.01 (쇼핑커넥트 오매칭)"}
+  - {seed: 기아 커넥트 서비스 연장, reason: "sim p=.06, date p=.03"}

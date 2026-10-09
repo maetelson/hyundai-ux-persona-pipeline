@@ -1,0 +1,29 @@
+source_id: naver_blog
+endpoint: blog
+layer: A
+source_notes: "블로그는 2단어 일반어 쿼리에서 오매칭 심함(블루링크→블루스택, 커넥트→쇼핑커넥트, 테마→테마주). 차종·브랜드·정확 상품명을 붙인 쿼리만. 본문은 링크로 별도 수집."
+max_pages: 10
+sorts: [sim, date]
+early_stop_low_yield_pages: 2
+early_stop_min_kept_ratio: 0.15
+negative_terms: [블루스택, 쇼핑커넥트, 쇼핑 커넥트, 브랜드커넥트, 배민커넥트, 테마주, 상한가, 원고료, 체험단]
+core_seeds:
+  - {seed: 기아 커넥트 스토어, reason: "p=.69"}
+  - {seed: 현대 FoD, reason: "p=.36"}
+  - {seed: 원격 스마트 주차 보조 구독, reason: "p=.50"}
+  - {seed: 원격 스마트 주차 보조 후기, reason: "p=.35"}
+  - {seed: 원격 주차 보조 구매, reason: "p=.51"}
+  - {seed: RSPA 2 구독, reason: "p=.68, 모수 작음"}
+  - {seed: 커넥티드 서비스 요금, reason: "p=.42"}
+  - {seed: BMW 열선 구독, reason: "p=.79"}
+  - {seed: 테슬라 FSD 구독, reason: "p=.84"}
+optional_templates:  # p<.1 이던 시드의 구체화 버전. 수율로 검증
+  - {seed: 마이현대 블루링크 스토어, reason: "'블루링크 스토어'(p=0) 대체"}
+  - {seed: 현대 블루링크 유료, reason: "'블루링크 유료 전환'(p=.01) 대체"}
+  - {seed: 기아 커넥트 스토어 테마, reason: "'기아 디스플레이 테마'(p=.07) 대체"}
+  - {seed: ccNC 디스플레이 테마, reason: "'디스플레이 테마 구매'(p=0) 대체"}
+  - {seed: 기아 라이팅 패턴, reason: "'라이팅 패턴 구매'(p=.16) 대체"}
+  - {seed: EV3 스마트 회생 시스템 플러스, reason: "'스마트 회생 시스템 플러스'(p=.03) 대체"}
+  - {seed: 차량 기능 구독 서비스 현대, reason: "'차량 기능 구독'(p=.04) 대체"}
+retired_seeds:  # 2026-10-09 1차 수집 수율 noise → 제외
+  - {seed: 블루링크 무료기간 끝, reason: "sim p=0, date p=.01 (블루스택 오매칭)"}
