@@ -6,6 +6,7 @@
 """
 import json
 import math
+import os
 import sys
 import warnings
 from collections import Counter
@@ -112,7 +113,8 @@ def segments(df):
         ent = 1 + (p * np.log(np.clip(p, 1e-12, 1))).sum() / (len(X) * math.log(k))
         sel.append({"k": k, "bic": round(m.bic(X), 1), "entropy": round(ent, 3), "model": m})
     sel_df = pd.DataFrame([{k: v for k, v in s.items() if k != "model"} for s in sel])
-    best = min(sel, key=lambda s: s["bic"])
+    k_env = int(os.getenv("K", "0"))  # run/06_1_select_k.py 결과로 지정
+    best = next(s for s in sel if s["k"] == k_env) if k_env else min(sel, key=lambda s: s["bic"])
     m, k = best["model"], best["k"]
     base = m.predict(X)
     # 부트스트랩 안정성: 재표본 적합 → 원 표본 예측 → 군집별 최대 Jaccard
@@ -128,12 +130,18 @@ def segments(df):
     km = KMeans(n_clusters=k, n_init=10, random_state=SEED).fit_predict(X)  # ponytail: k-modes 대신 KMeans 교차확인
     ari = adjusted_rand_score(base, km)
     # 상황 1개 이상인 모든 글에 배정
+    # 핵심 구성원 = 상황 2개 이상(적합 표본). 확장 = 상황 1개이면서 소속 확률 ≥ 0.6
     any_mask = X_all.sum(1) >= 1
     seg = np.full(len(df), -1)
-    seg[any_mask] = m.predict(X_all[any_mask])
+    proba = m.predict_proba(X_all[any_mask])
+    pred, pmax = proba.argmax(1), proba.max(1)
+    single = X_all[any_mask].sum(1) == 1
+    pred[single & (pmax < 0.6)] = -1
+    seg[any_mask] = pred
     df["segment"] = seg
+    df["core"] = X_all.sum(1) >= 2
     prof = pd.DataFrame(m.get_parameters()["measurement"]["pis"], columns=codes) if "measurement" in m.get_parameters() else None
-    info = {"k": k, "ari_vs_kmeans": round(ari, 3), "n_fit": int(fit_mask.sum()), "n_assigned": int(any_mask.sum()),
+    info = {"k": k, "ari_vs_kmeans": round(ari, 3), "n_fit": int(fit_mask.sum()), "n_assigned": int((seg >= 0).sum()),
             "stability": {c: round(float(np.mean(v)), 3) for c, v in jac.items()}}
     return df, sel_df, info, prof, codes
 
@@ -150,7 +158,7 @@ def persona_tables(df, codes):
         sit = Counter(x for xs in g["situation"] for x in set(xs))
         lift = {c: (sit[c] / n) / (base_sit[c] / n_all) for c in sit if base_sit[c] >= 30}
         top_sit = sorted(sit, key=lambda c: -sit[c])[:5]
-        rows_sum.append({"segment": s, "n": n, "share": round(n / n_all, 4), "top_source": src.index[0],
+        rows_sum.append({"segment": s, "n": n, "n_core": int(g["core"].sum()), "share": round(n / n_all, 4), "top_source": src.index[0],
                          "top_source_share": round(src.iloc[0], 3), "top_situations": "|".join(top_sit),
                          "top_lift": "|".join(sorted(lift, key=lambda c: -lift[c])[:5]),
                          "a_fod_share": round((g["layer"] == "A_FOD").mean(), 3)})
@@ -199,7 +207,9 @@ def persona_tables(df, codes):
                 picked += list(cand[cand["source"] == src_name].nlargest(2, "score").itertuples())
             for r in sorted(picked, key=lambda r: -r.score)[:6]:
                 ev = json.loads(r.evidence)
-                quote = next(iter(ev.values()), r.text[:80])
+                quote = ev.get(NEED_INFO.get(nid, {}).get("code"))  # 니즈의 상황 코드에 대한 근거만
+                if not quote:
+                    continue
                 quote_t.append({"segment": s, "need_id": nid, "hashtag": NEED_INFO.get(nid, {}).get("hashtag"),
                                 "post_id": r.post_id, "source": r.source, "quote": quote[:80], "outcome": r.outcome})
         # FoD 저니 장벽 (A층)
