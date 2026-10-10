@@ -1,0 +1,27 @@
+source_id: naver_benchmark
+endpoints: [cafearticle, blog]
+layer: A
+relevance: relevance_fod.yaml
+source_notes: "S5 경쟁·벤치마크: 타사 기능 구독·OTA에 대한 사용자 반응. 현대·기아 FoD 수용도의 비교 기준. 블로그는 정보글이 많아 count 후 p≥0.5만 수집."
+max_pages: 10
+sorts: [sim, date]
+early_stop_low_yield_pages: 2
+early_stop_min_kept_ratio: 0.15
+collect_min_p: {blog: 0.5, cafearticle: 0.0}
+negative_terms: [쇼핑커넥트, 브랜드커넥트, 테마주, 상한가, 원고료, 체험단]
+core_seeds:
+  - {seed: 테슬라 FSD 구독 해지, code: S_ADAS, reason: "구독→해지 순간"}
+  - {seed: 테슬라 FSD 일시불 구독 고민, code: S_ADAS, reason: "과금 형태 비교"}
+  - {seed: 테슬라 프리미엄 커넥티비티 구독, code: S_ENTERTAIN, reason: "커넥티드 요금 비교 기준"}
+  - {seed: 테슬라 EAP 구독, code: S_ADAS, reason: "기능 단위 구독"}
+  - {seed: BMW 커넥티드 드라이브 구독, code: S_REMOTE_CTRL, reason: "BMW 구독 반응"}
+  - {seed: BMW 기능 구독 반감, code: S_WEATHER, reason: "HW 잠금 반감 기준점"}
+  - {seed: 벤츠 디지털 엑스트라 구독, code: S_PERSONAL, reason: "벤츠 FoD"}
+  - {seed: 벤츠 디지털라이트 구독, code: S_PERSONAL, reason: "벤츠 라이팅 FoD"}
+  - {seed: 아우디 기능 구독, code: S_PERSONAL, reason: "독일 브랜드 비교"}
+  - {seed: 볼보 OTA 업데이트 후기, code: S_NAV, reason: "OTA 수용"}
+  - {seed: 폴스타 OTA 기능 추가, code: S_ADAS, reason: "OTA 기능 추가 반응"}
+  - {seed: 제네시스 OTA 기능 추가, code: S_ADAS, reason: "그룹 내 OTA 반응"}
+  - {seed: 차량 소프트웨어 업데이트 유료, code: S_COST, reason: "유료 OTA 인식"}
+  - {seed: 자동차 구독 서비스 반대, code: S_COST, reason: "구독 반감 일반"}
+  - {seed: 차 옵션 구독제 어떻게 생각, code: S_COST, reason: "의견형"}

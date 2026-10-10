@@ -1,0 +1,26 @@
+source_id: naver_substitute
+endpoints: [cafearticle]
+layer: B
+relevance: relevance_situation.yaml
+source_notes: "S6 대체재: 순정 FoD 대신 사제·타 앱·직접 해결로 니즈를 채우는 행동. FoD 가격·형태 판단의 비교 기준."
+max_pages: 10
+sorts: [sim, date]
+early_stop_low_yield_pages: 2
+early_stop_min_kept_ratio: 0.30
+negative_terms: [운전연수, 도로연수]
+core_seeds:
+  - {seed: 블루링크 대신 사제 원격시동, code: S_AFTERMARKET, reason: "순정 커넥티드 대체"}
+  - {seed: 원격시동 사제 순정 비교, code: S_AFTERMARKET, reason: "비교 판단"}
+  - {seed: 마이키 원격시동 후기, code: S_AFTERMARKET, reason: "사제 앱 원격시동"}
+  - {seed: 스마트폰 원격시동 경보기 설치, code: S_AFTERMARKET, reason: "사제 원격 제어"}
+  - {seed: 멀티팩 시공 후기, code: S_AFTERMARKET, reason: "편의 기능 사제 보충"}
+  - {seed: 사제 엠비언트 라이트 시공, code: S_PERSONAL, reason: "라이팅 FoD 대체"}
+  - {seed: 카플레이 순정 내비 대신, code: S_NAV, reason: "내비·스트리밍 FoD 대체"}
+  - {seed: 안드로이드오토 티맵 순정 대신, code: S_NAV, reason: "내비 대체"}
+  - {seed: 차량용 태블릿 거치 넷플릭스, code: S_ENTERTAIN, reason: "스트리밍 FoD 대체"}
+  - {seed: 뒷좌석 태블릿 아이 영상, code: S_CHILD, reason: "아이 엔터 대체"}
+  - {seed: 사제 후방카메라 주차 가이드, code: S_PARK_SKILL, reason: "주차 보조 대체"}
+  - {seed: 블랙박스 주차녹화 보조배터리, code: S_SECURITY, reason: "빌트인캠·감시 대체"}
+  - {seed: 무시동 에어컨 설치 차박, code: S_LEISURE, reason: "공조·차박 모드 대체"}
+  - {seed: 사제 하이패스 룸미러, code: S_AFTERMARKET, reason: "옵션 사후 보충"}
+  - {seed: 옵션 없어서 사제로, code: S_AFTERMARKET, reason: "출고 옵션 누락 후 보충 — FoD 기회"}

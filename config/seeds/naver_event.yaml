@@ -1,0 +1,26 @@
+source_id: naver_event
+endpoints: [cafearticle]
+layer: A
+relevance: relevance_fod.yaml
+source_notes: "S7 이벤트·시점: 돈이 나가거나 기능이 바뀌는 순간. date 정렬 중심(최근 반응). 계절 상황은 B층 relevance로 별도 측정 대상."
+max_pages: 10
+sorts: [date, sim]
+early_stop_low_yield_pages: 2
+early_stop_min_kept_ratio: 0.15
+negative_terms: [쇼핑커넥트, 브랜드커넥트, 테마주]
+core_seeds:
+  - {seed: 블루링크 무료기간 끝났는데, code: J_MANAGE, reason: "무료→유료 전환"}
+  - {seed: 블루링크 문자 왔는데 연장, code: J_MANAGE, reason: "갱신 고지"}
+  - {seed: 기아 커넥트 무료 종료, code: J_MANAGE, reason: "기아 전환"}
+  - {seed: 제네시스 커넥티드 유료 전환, code: J_MANAGE, reason: "제네시스 전환"}
+  - {seed: 블루링크 자동결제 해지, code: J_SETTLE, reason: "자동결제·해지"}
+  - {seed: 커넥트 스토어 환불, code: J_SETTLE, reason: "환불"}
+  - {seed: 디스플레이 테마 신규 출시, code: J_DISCOVER, reason: "출시 반응"}
+  - {seed: 커넥트 스토어 할인 이벤트, code: J_PURCHASE, reason: "할인 구매"}
+  - {seed: 블루링크 스토어 이벤트, code: J_PURCHASE, reason: "현대 이벤트"}
+  - {seed: 무선 업데이트 후 기능 추가, code: J_DISCOVER, reason: "OTA 후 발견"}
+  - {seed: ccNC 업데이트 테마 적용, code: J_ACTIVATE, reason: "OTA 후 적용"}
+  - {seed: 원격 스마트 주차 보조 무료 체험, code: J_TRIAL, reason: "체험"}
+  - {seed: 커넥트 스토어 무료 쿠폰, code: J_TRIAL, reason: "증정·0원 상품"}
+  - {seed: 차 팔면서 블루링크 해지, code: J_TRANSFER, reason: "매각 시 정리"}
+  - {seed: 중고차 블루링크 명의 이전, code: J_TRANSFER, reason: "중고 승계"}
