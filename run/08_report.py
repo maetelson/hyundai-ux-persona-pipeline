@@ -8,6 +8,7 @@
 import html
 import json
 import math
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -52,7 +53,7 @@ def bar(p, label="", color="var(--accent)"):
 
 def heat(v, vmax):
     a = 0 if vmax == 0 else min(1, v / vmax)
-    return f"background:color-mix(in oklab, var(--accent) {a * 85:.0f}%, transparent)"
+    return f"background:rgba(var(--heat),{a * 0.42:.2f})"
 
 
 def method_link(mid):
@@ -197,7 +198,8 @@ for s in segs:
     need_rows = ""
     for nr in nt.itertuples():
         qs = quotes[(quotes.segment == s) & (quotes.need_id == nr.need_id)].head(6)
-        qhtml = " · ".join(f'"{e(q)}"' for q in qs.quote)
+        ql = [f'"{e(q)}"' for q in qs.quote]
+        qhtml = " · ".join(ql[:2]) + (f'<details><summary>인용 {len(ql) - 2}개 더</summary>{" · ".join(ql[2:])}</details>' if len(ql) > 2 else "")
         need_rows += f'<tr><td><b>{e(nr.hashtag)}</b><br><small>{nr.share_in_segment:.1%} · {int(nr.n):,}건</small></td><td>{e(nr.name)}</td><td class="q">{qhtml}</td></tr>'
     cbars = "".join(f'<div class="crow"><span>{e(c.need_a)} ↔ {e(c.need_b)}</span>{bar(c.pct_of_segment * 5, f"{c.pct_of_segment:.1%}")}</div>' for c in cc.itertuples())
     jbs = jb[jb.segment == s]
@@ -213,9 +215,9 @@ for s in segs:
     insight = "".join(f"<li>{e(x)}</li>" for x in nar.get("insight", []))
     cards += f"""
 <article class="card" id="p{s}">
- <header><div><small>{e(seg_tag(s))}</small><h3>{e(seg_name(s))}</h3><p>{e(nar.get('one_liner', ''))}</p></div>
+ <header><div><h3>{e(seg_name(s))}</h3><p class="tagline">{e(seg_tag(s))}</p><p>{e(nar.get('one_liner', ''))}</p></div>
  <div class="kpi"><small>전체 분석수</small><b>{int(r.n):,}개</b><span>유효 글 대비 {r.share:.1%}</span></div></header>
- {f'<div class="insight"><b>INSIGHT</b><ul>{insight}</ul></div>' if insight else ''}
+ {f'<div class="insight"><b>인사이트</b><ul>{insight}</ul></div>' if insight else ''}
  <div class="grid3">
   <section><h4>인구통계 프로필</h4><table class="mini">{profile_block(s)}</table></section>
   <section><h4>니즈 교차언급 (동일 게시글 내)</h4>{cbars or '<p class=muted>교차 부족</p>'}</section>
@@ -229,7 +231,8 @@ for s in segs:
   <h4>이 카드로 말할 수 없는 것</h4><p>{e(nar.get('boundary', '시장 내 실제 비중, 연령 분포의 모집단 대표성, 지불 금액 수준 — 설문으로 확인 필요.'))}</p></section></div>
  </details>
 </article>"""
-S.append(("s6", "6. 페르소나 상세", "final", f"<h2>6. 페르소나 상세</h2>{cards}{method_link('m6')}"))
+chips = "".join(f'<a class="tag" href="#p{sg}" data-go="s6" data-card="p{sg}">{e(seg_name(sg))}</a>' for sg in segs)
+S.append(("s6", "6. 페르소나 상세", "final", f"<h2>6. 페르소나 상세</h2><p>{chips}</p>{cards}{method_link('m6')}"))
 
 ideas = NAR.get("ideas") or []
 ihtml = "".join(f"""<div class="idea"><small>{e(seg_name(i['segment']))}</small><h4>{e(i['title'])}</h4><p class="tags">{' '.join(f'<span class=tag>{e(t)}</span>' for t in i.get('needs', []))}</p>
@@ -406,10 +409,13 @@ if (X / "e9_ca_points.csv").exists():
     ca = csv("e9_ca_points", X)
     ca["nm"] = ca.apply(lambda r: LS_NAME.get(r.label, r.label) if r.kind == "who" else r["name"], axis=1)
     inr = meta2["e9_inertia"]
+    who, sit_ = ca[ca.kind == "who"], ca[ca.kind == "situation"]
+    near = "".join(f"<tr><th>{e(w.nm)}</th><td>" + " · ".join(e(x.split(',')[0]) for x in sit_.assign(d=(sit_.x - w.x) ** 2 + (sit_.y - w.y) ** 2).nsmallest(3, "d")["name"]) + "</td></tr>" for w in who.itertuples())
+    ca["lbl"] = ca.apply(lambda r: r.nm if r.kind == "who" or r.mass >= 0.07 else "", axis=1)
     S.append(("x9", "E9. 대응 분석", "extra", f"""<h2>E9. 누가 어떤 상황을 말하나 (대응 분석)</h2>
 <div class="ins"><b>가로축 = '가족' 대 '차 기술', 세로축 = '현대·기아 커넥티드' 대 '입문·전기차'</b>영유아·학령기 부모와 여성 단서는 아이 동승·적재와 함께 왼쪽에 모이고, 현대·기아는 개인화·원격 제어·내비와 위쪽에, 첫차·신혼은 주차 실력·교체 고민과 아래쪽에 모입니다. 부모 단서가 아이 동승·적재와 붙는 것은 아이 동승 부모 세그먼트와 일치하고, EV·수입 단서는 돈 계산·주행 보조·교체와 같은 쪽(구매 결정자 세그먼트의 상황)에 있습니다.</div>
-{scatter(ca, "x", "y", "nm", W=720, H=480, xlab=f"1축 ({inr[0]:.0%})", ylab=f"2축 ({inr[1]:.0%})", xline=0, yline=0, color=lambda r: "var(--band)" if r.kind == "who" else "var(--accent)", size=lambda r: 3 + math.sqrt(r.mass) * 18)}
-<p class="muted">남색 = 사람 단서(생애단계·성별·브랜드·EV), 빨강 = 상황 코드. 가까울수록 함께 나오는 경향. 1·2축 설명력 합 {inr[0] + inr[1]:.0%}.</p>{method_link('m17')}"""))
+{scatter(ca, "x", "y", "lbl", W=720, H=480, xlab=f"1축 ({inr[0]:.0%})", ylab=f"2축 ({inr[1]:.0%})", xline=0, yline=0, color=lambda r: "var(--band)" if r.kind == "who" else "var(--accent)", size=lambda r: 3 + math.sqrt(r.mass) * 18)}
+<p class="muted">남색 = 사람 단서(생애단계·성별·브랜드·EV), 빨강 = 상황 코드. 가까울수록 함께 나오는 경향. 1·2축 설명력 합 {inr[0] + inr[1]:.0%}. 큰 상황(비중 7% 이상)만 이름을 붙였습니다.</p><h4>사람 단서별 가장 가까운 상황 3개</h4><table class="t"><thead><tr><th>사람 단서</th><th>가까운 상황</th></tr></thead><tbody>{near}</tbody></table>{method_link('m17')}"""))
 
 if (X / "s1_scorecard.csv").exists():
     sc = csv("s1_scorecard", X)
@@ -420,8 +426,8 @@ if (X / "s1_scorecard.csv").exists():
             sens_ = "" if pd.isna(r.p_top_half) else f"{r.p_top_half:.0%} (순위 {r.rank_p05:.0f}~{r.rank_p95:.0f})"
             rows_ += (f'<tr><th>{e(r.feature)}</th><td><span class="tag" style="color:{DEC_C[d]}">{d}</span></td><td>{r.mean_rank:.2f}</td>'
                       f'<td>{r.push:.0%}</td><td>{r.pull:.0%}</td><td>{r.anxiety:.0%}</td><td>{r.habit:.0%}</td><td>{r.pay_resistance:.1%}</td>'
-                      f'<td>{e(r.kano_class.split("(")[0])} <small>{r.boot_stability:.2f}</small></td><td>{e(sens_)}</td><td><small>{e(r.price_ref if isinstance(r.price_ref, str) else "")}</small></td></tr>')
-    S.append(("x10", "S1. FoD 후보 점수표", "extra", f"""<h2>S1. 기능별 FoD 후보 점수표 (E1~E6 종합)</h2>
+                      f'<td>{e(r.kano_class.split("(")[0])} <small>{r.boot_stability:.2f}</small></td><td style="white-space:nowrap">{e(sens_)}</td><td><small>{e(r.price_ref if isinstance(r.price_ref, str) else "")}</small></td></tr>')
+    S.append(("x10", "S1. FoD 후보 점수표", "extra", f"""<h2>S1. 기능별 FoD 후보 점수표 (가격·기대 유형·4가지 힘 종합)</h2>
 <div class="ins"><b>FoD로 팔 것: 회생 제동·화면 테마가 가중치와 무관하게 상위 / 기본 탑재: 디지털 키·열선 / 보류: 영상·게임·라이팅·OTA·주행 보조</b>회생 제동과 테마는 가중치를 2,000번 무작위로 바꿔도 92~97%가 상위 절반입니다. 원격 주차·원격 제어·캠핑 모드·주차 감시는 58~63%로 '후보이나 가중치에 민감'합니다. 주행 보조(FSD)는 수요는 크지만 불안이 커서 보류입니다.</div>
 <p>기준 6개(수요·불편·매력은 높을수록, 불안·기존 대안·유료화 반감은 낮을수록 좋음)의 순위 평균. 판정 규칙은 결과를 보기 전에 정했습니다: 유료화 반감 ≥10% 또는 Kano '당연'(안정성 ≥0.7) → 기본 탑재 권장, 나머지는 순위 평균 중앙값으로 판매 후보/보류.</p>
 <table class="t"><thead><tr><th>기능</th><th>판정</th><th>순위 평균</th><th>불편</th><th>매력</th><th>불안</th><th>대안</th><th>유료화 반감</th><th>Kano <small>안정성</small></th><th>상위 절반 확률</th><th>가격 앵커</th></tr></thead><tbody>{rows_}</tbody></table>{method_link('m18')}"""))
@@ -444,6 +450,53 @@ if (X / "v_rule_validation.csv").exists():
     S.append(("x12", "V. 규칙 판정 검증", "extra", f"""<h2>V. 키워드 규칙 판정 검증 (사람 정답 399건)</h2>
 <div class="ins"><b>가격 반응(0.29)·없어서 불만(0.45)은 원래 규칙이 부정확 — 가격 반응은 보고서에서 빼고, 나머지 규칙은 고쳐서 다시 돌렸습니다</b>'없어서 불만'은 고장('안 들어와요')·출금('돈이 빠져나가') 오탐을 지워 0.57로, 스토어 '가격·결제'는 1+1·무료 이벤트를 넣어 재현율 0.21 → 0.96으로 올렸습니다. 단 수정 후 수치는 <b>같은 표본으로 다시 잰 것이라 낙관적</b>입니다. '호환·차종 차이'는 정답이 2건뿐이라 판단할 수 없습니다.</div>
 {tbl(vr, [("check", "판정"), ("rule", "규칙"), ("type", "지표"), ("n", "n"), ("value", "값"), ("ci_lo", "95% 하한"), ("ci_hi", "상한")], {"value": lambda v: "" if pd.isna(v) else f"{v:.2f}", "ci_lo": lambda v: f"{v:.2f}", "ci_hi": lambda v: f"{v:.2f}"})}{method_link('m19')}"""))
+
+if (X / "s3_survey_items.csv").exists():
+    si = csv("s3_survey_items", X)
+    sm = json.loads((X / "s3_survey_meta.json").read_text(encoding="utf-8"))
+    rec = " · ".join(f"{seg_name(int(k))} {v:.0%}" for k, v in sm["recall_by_segment_12"].items())
+    S.append(("x13", "S3. 설문 판별 문항", "extra", f"""<h2>S3. 세그먼트를 가르는 설문 문항 후보</h2>
+<div class="ins"><b>상황 문항 5개면 6개 세그먼트를 90% 가른다 — 그중 2개(원격·앱 실패, 캠핑·레저)는 지금 설문에 없음</b>문콕 칸 주차 → 사제 장착 → 아이 동승 → 캠핑·레저 → 원격·앱 사용 순서로 넣으면 균형 정확도가 0.33 → 0.90으로 오릅니다(우연 기준 {sm['chance_balanced']:.2f}, 22개 전부 {sm['full22_balanced']:.2f}). 구매 결정자는 '다른 상황이 없음'으로 가려지므로, 설문에는 돈 계산·교체 고민을 직접 묻는 문항을 따로 둬야 합니다.</div>
+{tbl(si, [("rank", "순서"), ("name", "상황"), ("balanced_acc", "누적 균형 정확도"), ("points_to_segment", "가리키는 세그먼트"), ("survey_item", "설문 문항"), ("status", "상태"), ("item_text", "문항 내용")], {"points_to_segment": seg_name, "balanced_acc": lambda v: f"{v:.2f}"})}
+<p class="muted">12개 사용 시 세그먼트별 재현율: {e(rec)}. 세그먼트가 같은 코드로 만들어졌으므로 이 정확도는 '몇 개 코드로 재현되나'를 뜻하며, 실제 설문 타당도는 응답자로 다시 학습·검증해야 합니다.</p>{method_link('m20')}"""))
+
+if (X / "v_label_accuracy.csv").exists():
+    la = csv("v_label_accuracy", X)
+    top = la[~la.metric.str.startswith("상황 F1 ·")]
+    per = la[la.metric.str.startswith("상황 F1 ·") & (la.n >= 3)].assign(code=lambda d: d.metric.str.replace("상황 F1 · ", "").map(lambda c: SIT_NAME.get(c, c)))
+    S.append(("x14", "V2. LLM 라벨 정확도", "extra", f"""<h2>V2. 본 라벨(Haiku) 정확도 — 코드북 v2, 본 코퍼스 200건</h2>
+<div class="ins"><b>유효/제외 판정 0.94, 층 판정 κ 0.83, 상황 코드 F1 0.78 — 아이 동승은 놓치는 쪽(재현율 0.54)</b>본 라벨은 상황 코드를 붙일 때 정밀도(0.83)가 재현율(0.74)보다 높아 '덜 붙이는' 쪽입니다. 특히 아이 동승·교체 고민·전기차 코드를 자주 놓쳐, 아이 동승 부모와 구매 결정자 세그먼트는 실제보다 작게 잡혔을 수 있습니다. 돈 계산 코드는 F1 0.36으로 가장 불안정합니다.</div>
+{tbl(top, [("metric", "지표"), ("n", "n"), ("value", "값"), ("precision", "정밀도"), ("recall", "재현율")], {"precision": lambda v: "" if pd.isna(v) else f"{v:.2f}", "recall": lambda v: "" if pd.isna(v) else f"{v:.2f}"})}
+<h4>상황 코드별 (정답 3건 이상)</h4>{tbl(per, [("code", "상황"), ("n", "정답 수"), ("value", "F1"), ("precision", "정밀도"), ("recall", "재현율")])}{method_link('m21')}"""))
+
+if (X / "e10_brand_summary.csv").exists():
+    bs, ba = csv("e10_brand_summary", X), csv("e10_brand_attitude", X)
+    bm = json.loads((X / "e10_meta.json").read_text(encoding="utf-8"))
+    bp = ba.pivot(index="attitude", columns="brand", values="share")
+    cols = [c for c in ["현대", "기아", "기아(스토어 리뷰 제외)", "제네시스", "테슬라", "기타 수입"] if c in bp.columns]
+    bp = bp[cols]
+    vmax = bp.max().max()
+    head = "".join(f"<th>{e(c)}</th>" for c in cols)
+    body = "".join(f"<tr><th>{T_NAME.get(a, a)}</th>" + "".join(f'<td style="{heat(v, vmax)}">{v:.0%}</td>' for v in r) + "</tr>" for a, r in bp.iterrows())
+    S.append(("x15", "E10. 브랜드별 FoD 반응", "extra", f"""<h2>E10. 브랜드별 FoD 반응 (FoD 직접 글 {bm['n_afod_with_brand']:,}건)</h2>
+<div class="ins"><b>기아가 유독 만족해 보이는 건 스토어 구매 후기 때문 — 빼면 현대·기아·테슬라의 부정 비율은 25~31%로 비슷</b>브랜드마다 막히는 지점은 다릅니다: 현대·제네시스는 '관리'(블루링크 유료 전환·연장), 테슬라는 '구매' 단계의 망설임(23%)·본전 계산(17%), BMW 등 기타 수입은 HW잠금 반감 32%(열선 구독 논란)로 부정이 55%입니다. 브랜드와 태도는 독립이 아닙니다(χ²={bm['chi2']:,}, Cramér's V {bm['cramers_v']}).</div>
+{tbl(bs, [("brand", "브랜드"), ("n", "글"), ("neg_share", "부정"), ("accept_share", "지불 수용"), ("reject_share", "지불 거부"), ("top_journey", "많이 나오는 저니 단계")], {"neg_share": pct, "accept_share": pct, "reject_share": pct})}
+<h4>브랜드 × 태도</h4><table class="t heat"><thead><tr><th>태도</th>{head}</tr></thead><tbody>{body}</tbody></table>{method_link('m22')}"""))
+
+if (X / "r_meta.json").exists():
+    rl, rs = csv("r_label_correction", X), csv("r_source_refit", X)
+    rm = json.loads((X / "r_meta.json").read_text(encoding="utf-8"))
+    au = rm["author"]
+    rsp = rs.pivot(index="segment", columns="subset", values="cosine").reset_index()
+    rsp["name"] = rsp.segment.map(seg_name)
+    S.append(("x16", "R. 견고성 점검", "extra", f"""<h2>R. 결과는 얼마나 단단한가 — 라벨 오차·출처·작성자</h2>
+<div class="ins"><b>6개 중 4개 세그먼트는 출처를 바꿔도 다시 나온다 — 사제 보충파·공간 활용족은 카페 커뮤니티에서만 보이는 페르소나</b>블로그·리뷰만으로 다시 묶으면 커넥티드 관리자·아이 동승 부모·구매 결정자·문콕 방어자는 다시 나오지만(코사인 0.73~0.91), 사제 보충파(0.15)와 공간 활용족(0.53)은 사라집니다. 같은 블로거의 두 글이 같은 세그먼트일 확률은 {au['same_segment']:.0%}로 무작위 {au['random_baseline']:.0%}보다 높아, 세그먼트가 글의 주제만이 아니라 사람의 성향도 반영합니다. 라벨 오차를 보정하면 아이 동승·교체 고민·전기차 상황은 실제보다 1.6~2.0배 적게 잡혔을 수 있습니다.</div>
+<h3 class="sub">출처별 재군집 — 본 세그먼트와의 프로필 유사도(코사인)</h3>
+{tbl(rsp, [("name", "세그먼트"), ("카페만", "카페만"), ("카페 외(블로그·리뷰)", "카페 외")], {"카페만": lambda v: f"{v:.2f}", "카페 외(블로그·리뷰)": lambda v: f"{v:.2f}"})}
+<p class="muted">공통 글 배정 ARI: 카페만 {rm['source_ari']['카페만']}, 카페 외 {rm['source_ari']['카페 외(블로그·리뷰)']}.</p>
+<h3 class="sub">라벨 오차 보정 유병률 (정답 5건 이상 코드)</h3>
+{tbl(rl, [("name", "상황"), ("gold_n", "정답 수"), ("observed", "관측"), ("factor", "보정 배수"), ("corrected", "보정값"), ("corrected_lo", "95% 하한"), ("corrected_hi", "상한")], {"observed": pct, "corrected": pct, "corrected_lo": pct, "corrected_hi": pct})}
+<p class="muted">작성자 일관성: 블로그 작성자 {au['authors']}명, 글 짝 {au['pairs']}개, 같은 세그먼트 {au['same_segment']:.0%} (95% CI {au['ci'][0]:.0%}~{au['ci'][1]:.0%}).</p>{method_link('m23')}"""))
 
 # ---------------- 방법·신뢰도 (논문형) ----------------
 def method(mid, title, methods, variables, reliability, limits):
@@ -619,44 +672,257 @@ S.append(method("m19", "M19. 키워드 규칙 검증 (V)",
     ["원래 규칙: 없어서 불만 0.45, 있어서 기쁨 0.76, 가격 반응 0.29, 스토어 가격 재현율 0.21"],
     ["수정 후 수치는 같은 표본 재측정이라 낙관 편향 — 새 표본으로 재검증 필요", "정답자가 한 명(LLM)이라 일치도(κ) 없음", "희귀 유형(호환, 설치 실패)은 표본이 작아 CI가 넓음"]))
 
+S.append(method("m20", "M20. 설문 판별 문항 선택 (S3)",
+    ["입력: LCA 적합 표본(상황 2개 이상, 13,594건)의 상황 상위 22개 이진 지표와 배정 세그먼트",
+     "앞으로 선택: 다항 로지스틱(class_weight=balanced) 5겹 층화 CV의 균형 정확도를 가장 많이 올리는 코드를 하나씩 추가(최대 12개)",
+     "각 코드를 현행 설문 문항(B2-1, B2-3, C-1a 등) 또는 신규 문항 제안에 대응"],
+    ["situation 22개 0/1, segment"],
+    ["기준선: 우연 1/6, 22개 전부 사용", "선택 12개의 세그먼트별 재현율"],
+    ["순환성: 세그먼트가 같은 코드로 만들어져 정확도가 높게 나옴 — 문항 '후보'를 고르는 용도", "글의 '언급' 지표와 설문의 '빈도' 문항은 다른 측정 — 응답자 자료로 재학습 필요(PLAN 8.1)"]))
+
+S.append(method("m21", "M21. 본 라벨 정확도 재측정 (V2)",
+    ["본 코퍼스에서 층화 표본 200건(카페 110·블로그 50·앱 리뷰 20·스토어 20, seed 고정)",
+     "Claude Code 세션(Opus 5.5)이 본 라벨을 보지 않고 코드북 v2로 layer·상황 정답 작성(블라인드)",
+     "layer: 정확도·Cohen κ·유효/제외 정확도 / 상황: 둘 다 유효로 본 글에서 코드별·마이크로·매크로 F1"],
+    ["post_labels(layer, situation), data/gold/gold_v2_claude.json"],
+    ["정답자 1명(LLM) — 사람 검수·이중 코딩 κ 없음"],
+    ["정답 5건 미만 코드는 F1이 불안정", "카페 스니펫이 짧아 정답 자체도 애매한 글이 있음"]))
+
+S.append(method("m22", "M22. 브랜드별 비교 (E10)",
+    ["브랜드 = 데모 트랙 brand 단서(본문·메타·채널), 수입 중 '테슬라' 단서는 테슬라로 분리, 여러 브랜드 글은 제외",
+     "FoD 직접(A층) 글에서 태도 10개 비율·부정 비율·지불 신호·저니 단계, Wilson 95% CI",
+     "브랜드 × 태도 카이제곱 검정, Cramér's V / 민감도: 기아 스토어 리뷰 제외"],
+    ["brand(post_demo), attitude, sentiment, wtp_signal, journey, source"],
+    ["기아 스토어 리뷰 제외 시 기아 부정 비율 12.5% → 27.6%로, 원천 구성이 브랜드 차이를 크게 만든다"],
+    ["브랜드 단서가 있는 글만", "브랜드별 원천(카페·스토어·앱) 구성이 달라 순수 브랜드 효과가 아님"]))
+
+S.append(method("m23", "M23. 견고성 점검 (R)",
+    ["라벨 오차 보정: 코드별 관측 유병률 × (정밀도 / 재현율), 정답 v2 200건 부트스트랩 1,000회로 95% 구간",
+     "출처별 재군집: 카페만 / 카페 외 표본으로 LCA(k=6, n_init 5) 재적합 → 본 세그먼트 코드 확률 프로필과 헝가리안 매칭 코사인, 매칭 후 공통 글 ARI",
+     "작성자 일관성: 블로그 작성자(배정 글 2개 이상)의 모든 글 짝이 같은 세그먼트인 비율 vs 세그먼트 비율 제곱합(무작위 기준)"],
+    ["situation, segment, source, author_hash(블로그만), 정답 v2"],
+    ["카페만 ARI 0.81 / 카페 외 ARI 0.60"],
+    ["정답이 작아(코드당 5~19건) 보정 구간이 넓음 — 방향만 해석", "카페 외 표본은 작고 리뷰 위주라 레저·사제 상황이 적음", "작성자 식별은 블로그만 가능(전체의 4.6%)"]))
+
+# ---------------- 한눈에 보기 (첫 화면) ----------------
+def overview():
+    sc = csv("s1_scorecard", X) if (X / "s1_scorecard.csv").exists() else pd.DataFrame()
+    pr = csv("s2_prescriptions", X) if (X / "s2_prescriptions.csv").exists() else pd.DataFrame()
+    ipa_ = csv("e5_app_ipa", X) if (X / "e5_app_ipa.csv").exists() else pd.DataFrame()
+    facts = [(f"{int(funnel.iloc[:, 0].sum()):,}", "건 수집"), (f"{len(corpus):,}", "건 분석"), (f"{n_ab:,}", "건 유효"), (f"{info['k']}", "개 페르소나")]
+    fh_ = "".join(f"<span><b>{v}</b>{k}</span>" for v, k in facts)
+    dec = lambda d: " · ".join(sc[sc.decision == d].sort_values("mean_rank").feature) if not sc.empty else ""
+    biggest = summ.sort_values("n", ascending=False).iloc[0]
+    top_asp = ipa_.nlargest(3, "importance") if not ipa_.empty else pd.DataFrame()
+    asp = " · ".join(f"{r.aspect} −{r.importance:.2f}점" for r in top_asp.itertuples())
+    rest = " · ".join(sc[sc.decision == "FoD 판매 후보"].sort_values("mean_rank").feature[2:]) if not sc.empty else ""
+    finds = [
+        ("FoD로 먼저 팔 기능은 회생 제동과 화면 테마", f"기준 가중치를 2,000번 바꿔도 상위를 지킵니다. 다음 후보는 {rest}. 디지털 키·열선은 기본 탑재, {dec('보류')}는 보류입니다.", "x10"),
+        (f"가장 큰 그룹은 {seg_name(biggest.segment)}({biggest.share:.0%})", f"앱 별점을 깎는 것은 기능이 아니라 기반입니다 — {asp}.", "x5"),
+        ("구매를 막는 건 불안보다 '이미 쓰는 대안'", "사제 보충파는 사제 용품 91%, 문콕 방어자 61%. 불안이 막는 그룹은 구매 결정자뿐입니다.", "x11"),
+        ("가격 기준점은 커넥티드 월 5,500~9,900원", "원격 주차 평생 이용권 50만 원, 테슬라 FSD 월 15만 원이 반복해서 나옵니다.", "x1"),
+        ("비중은 온라인 글의 비중이지 시장 비중이 아님", "카페 글 위주이고, 사제 보충파·공간 활용족은 카페에서만 재현됩니다. LLM 상황 라벨 F1 0.78 — 아이 동승은 적게 잡혔을 수 있습니다. 설문으로 확정합니다.", "x16"),
+    ]
+    rows_ = "".join(f'<a class="row{" lead" if k == 0 else ""}" href="#{g}" data-go="{g}"><b>{e(h)}</b><p>{e(b_)}</p><span class="go">근거 보기 →</span></a>' for k, (h, b_, g) in enumerate(finds))
+    pmap = {int(r.segment): r for r in pr.itertuples()} if not pr.empty else {}
+    ph = ""
+    for sg in segs:
+        r = summ[summ.segment == sg].iloc[0]
+        rx = pmap.get(int(sg))
+        ph += f"""<a class="prow" href="#s6" data-go="s6" data-card="p{sg}"><div><b>{e(seg_name(sg))}</b><small>{e(seg_tag(sg))}</small></div>
+<div class="bar"><span style="width:{r.share * 100 / summ.share.max():.0f}%;background:var(--accent)"></span><em>{r.share:.1%}</em></div>
+<div><p>{e(SEG_NAR.get(int(sg), {}).get('one_liner', ''))}</p><p class="rx">{e(rx.condition) if rx is not None else ''}</p></div></a>"""
+    return ("s0", "한눈에 보기", "summary", f"""<div class="lede"><h2>{e(NAR.get('title', '현대차 FoD 데이터 기반 페르소나'))}</h2>
+<p class="stand">온라인 리뷰와 커뮤니티 글로 FoD(출고 후 기능 구매)를 둘러싼 니즈와 순간을 찾고, 6개 페르소나와 기능별 판매 판단을 만들었습니다. 텍스트 기반 1차 결과이며 설문으로 확정합니다.</p>
+<div class="facts">{fh_}</div></div>
+<h3 class="sec">핵심 결론</h3><div class="rows">{rows_}</div>
+<h3 class="sec">6개 페르소나와 처방</h3><div class="rows">{ph}</div>
+<p class="muted">행을 누르면 근거 화면으로 이동합니다. 각 분석 화면 아래에 방법과 신뢰도가 있습니다.</p>""")
+
+
+S.insert(0, overview())
+
 # ---------------- 페이지 조립 ----------------
-nav_final = "".join(f'<a href="#{i}" data-go="{i}">{e(t)}</a>' for i, t, g, _ in S if g == "final")
-nav_extra = "".join(f'<a href="#{i}" data-go="{i}">{e(t)}</a>' for i, t, g, _ in S if g == "extra")
-nav_method = "".join(f'<a href="#{i}" data-go="{i}">{e(t)}</a>' for i, t, g, _ in S if g == "method")
-panels = "".join(f'<section class="panel" id="{i}">{h}</section>' for i, _, _, h in S)
+# 메뉴는 '읽는 사람의 질문'으로, 방법·신뢰도는 각 분석 화면 아래에 접어서 넣는다
+NAV_TITLE = {
+    "s0": "한눈에 보기", "s3": "핵심 인사이트", "s5": "페르소나 한눈에", "x10": "어떤 기능을 FoD로 팔까", "x11": "페르소나별 판매 전략",
+    "s6": "페르소나 상세 카드", "s7": "FoD 아이디어", "s8": "니즈별 기회 크기", "s9": "구매 단계별 장벽", "s4": "니즈는 어떻게 묶이나", "s2": "니즈 코드 체계",
+    "x1": "사람들이 말하는 가격", "x2": "스토어 상품은 잘 팔렸나", "x3": "FoD 대신 무엇을 쓰나", "x6": "사게 하는 힘 vs 막는 힘", "x4": "기능별 기대 유형 (Kano)",
+    "x5": "앱 별점을 깎는 것", "x7": "FSD 구독 전환 반응", "x9": "누가 어떤 상황을 말하나", "x8": "코드북이 놓친 주제", "x13": "설문에 넣을 판별 문항", "x14": "LLM 라벨 정확도", "x15": "브랜드별 FoD 반응", "x16": "결과는 얼마나 단단한가",
+    "s1": "데이터를 어떻게 모았나", "x12": "규칙 판정 검증", "m8": "한계와 주장 경계", "m4": "인구 단서 추출",
+}
+GROUPS = [("summary", "결론", ["s0", "s3", "s5", "x10", "x11", "x13"]),
+          ("persona", "페르소나", ["s6", "s7", "s8", "s9", "s4", "s2"]),
+          ("extra", "심화 분석", ["x1", "x2", "x3", "x6", "x4", "x5", "x15", "x7", "x9", "x8"]),
+          ("appendix", "부록", ["s1", "x16", "x14", "x12", "m8", "m4"])]
+html_of = {i: h for i, _, _, h in S}
+order = [i for _, _, ids in GROUPS for i in ids if i in html_of]
+grp_of = {i: k for k, _, ids in GROUPS for i in ids}
+title_of = {i: NAV_TITLE.get(i, t) for i, t, _, _ in S}
+nav = "".join(f'<details open><summary>{lab}</summary>' + "".join(f'<a href="#{i}" data-go="{i}">{e(title_of[i])}</a>' for i in ids if i in html_of) + "</details>" for _, lab, ids in GROUPS)
+TBL = re.compile(r'(<table class="t[ "][^>]*>.*?</table>)', re.S)
+MLINK = re.compile(r'<a class="mlink" href="#(m\d+)" data-go="m\d+">[^<]*</a>')
+H2 = re.compile(r"<h2>(?:[A-Z]?\d+\.|V\.|[A-Z]\d+\.)\s*")
+
+
+def method_box(m):
+    body = re.sub(r"<h2>.*?</h2>", "", html_of.get(m, ""), count=1, flags=re.S)
+    body = re.sub(r"<details open><summary>(.*?)</summary>(.*?)</details>", lambda m: f'<div class="msec"><h3 class="sub">{m.group(1)}</h3>{m.group(2)}</div>', body, flags=re.S)
+    return f'<details class="method"><summary>이 분석은 어떻게 했나 · 신뢰도</summary><div class="mbody">{body}</div></details>'
+
+
+def panel(i):
+    k = order.index(i)
+    prv, nxt = (order[k - 1] if k else None), (order[k + 1] if k + 1 < len(order) else None)
+    pager = (f'<a href="#{prv}" data-go="{prv}"><small>이전</small>{e(title_of[prv])}</a>' if prv else "<span></span>") + \
+            (f'<a class="nx" href="#{nxt}" data-go="{nxt}"><small>다음</small>{e(title_of[nxt])}</a>' if nxt else "")
+    crumb = next(lab for k_, lab, _ in GROUPS if k_ == grp_of[i])
+    body = TBL.sub(r'<div class="tw">\1</div>', html_of[i])
+    body = MLINK.sub(lambda m: method_box(m.group(1)), body)
+    body = H2.sub("<h2>", body)
+    body = body.replace("<h4", '<h3 class="sub"').replace("</h4>", "</h3>")
+    return f'<section class="panel" id="{i}" aria-label="{e(crumb)} · {e(title_of[i])}">{body}<nav class="pager">{pager}</nav></section>'
+
+
+panels = "".join(panel(i) for i in order)
 title = NAR.get("title", "현대차 FoD 데이터 기반 페르소나")
 page = f"""<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FoD 페르소나 보고서</title><style>
-:root{{--bg:#fbfaf8;--fg:#1c1b19;--muted:#77736c;--card:#ffffff;--line:#e6e2db;--accent:#d2452a;--band:#1f2a44;--soft:#fdeee9}}
-@media (prefers-color-scheme:dark){{:root:not([data-theme="light"]){{--bg:#141414;--fg:#ece9e4;--muted:#9a958d;--card:#1d1d1d;--line:#333;--accent:#ff6a4d;--band:#2d3a5c;--soft:#2a1d1a}}}}
-:root[data-theme="dark"]{{--bg:#141414;--fg:#ece9e4;--muted:#9a958d;--card:#1d1d1d;--line:#333;--accent:#ff6a4d;--band:#2d3a5c;--soft:#2a1d1a}}
-*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 -apple-system,"Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif}}
-.wrap{{display:grid;grid-template-columns:250px 1fr;min-height:100vh}}nav{{position:sticky;top:0;height:100vh;overflow:auto;padding:20px 16px;border-right:1px solid var(--line);background:var(--card)}}
-nav h1{{font-size:16px;margin:0 0 4px}}nav p{{font-size:12px;color:var(--muted);margin:0 0 16px}}nav b{{display:block;margin:16px 0 6px;font-size:12px;color:var(--muted);letter-spacing:.04em}}
-nav a{{display:block;padding:6px 10px;border-radius:8px;color:var(--fg);text-decoration:none;font-size:14px}}nav a.on,nav a:hover{{background:var(--soft);color:var(--accent)}}
-main{{padding:28px 32px;max-width:1180px}}.panel{{display:none}}.panel.on{{display:block}}h2{{font-size:22px;margin:0 0 12px}}h3{{margin:2px 0;font-size:24px}}h4{{margin:0 0 8px;font-size:14px}}
-.t{{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}}.t th,.t td{{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}}.t thead th{{color:var(--muted);font-weight:600}}
-.heat td{{text-align:center}}small{{color:var(--muted)}}.muted{{color:var(--muted)}}.tag{{display:inline-block;background:var(--soft);color:var(--accent);border-radius:999px;padding:1px 8px;margin:2px;font-size:12px}}
-.flow{{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:12px 0}}.flow div{{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}}.flow b,.flow span,.flow strong{{display:block}}.flow span{{font-size:12px;color:var(--muted);margin:4px 0}}.flow strong{{font-size:20px;color:var(--accent)}}
-.tracks{{display:grid;grid-template-columns:1fr 1fr;gap:8px}}.tracks div{{background:var(--card);border-left:4px solid var(--band);padding:10px 12px;border-radius:6px}}
-.ins{{border-left:5px solid var(--band);padding:8px 14px;margin:12px 0;background:var(--card)}}.ins b{{display:block;font-size:17px}}
-.net{{width:100%;max-width:820px;background:var(--card);border:1px solid var(--line);border-radius:12px}}.nl{{font-size:10px;fill:var(--fg)}}
-.card{{background:var(--card);border:1px solid var(--line);border-top:5px solid var(--accent);border-radius:14px;padding:18px;margin:20px 0}}
-.card header{{display:flex;justify-content:space-between;gap:16px}}.kpi{{background:var(--soft);border-radius:10px;padding:10px 16px;text-align:center;min-width:170px}}.kpi b{{display:block;font-size:26px;color:var(--accent)}}
-.insight{{background:var(--soft);border-radius:10px;padding:8px 14px;margin:10px 0}}.insight ul{{margin:4px 0;padding-left:18px}}
-.grid3{{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:12px;margin:12px 0}}.grid3 section{{background:var(--bg);border-radius:10px;padding:10px}}.mini th{{width:70px;text-align:left;font-weight:600;font-size:12px;vertical-align:top}}.mini td{{font-size:13px}}
-.feat p{{margin:0 0 6px;font-size:13px}}.band{{background:var(--band);color:#fff;padding:6px 12px;border-radius:6px}}.needs td{{font-size:13px}}.q{{color:var(--muted);font-size:12px}}
-.crow{{font-size:12px;margin:4px 0}}.bar{{position:relative;height:16px;background:var(--line);border-radius:4px;overflow:hidden}}.bar span{{position:absolute;inset:0 auto 0 0}}.bar em{{position:absolute;right:4px;top:-1px;font-size:11px;font-style:normal}}
-details{{margin:10px 0}}summary{{cursor:pointer;font-weight:600}}.back{{display:grid;grid-template-columns:1.4fr 1fr;gap:12px;margin-top:8px}}
-.ideas{{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}}.idea{{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}}.idea h4{{font-size:16px;margin:4px 0}}
-.mlink{{display:inline-block;margin-top:10px;font-size:13px;color:var(--accent)}}
-@media (max-width:820px){{.wrap{{grid-template-columns:1fr}}nav{{position:static;height:auto}}main{{padding:16px}}.flow,.grid3,.tracks,.back{{grid-template-columns:1fr}}.card header{{flex-direction:column}}}}
-</style></head><body><div class="wrap"><nav><h1>{e(title)}</h1><p>생성 {pd.Timestamp.now():%Y-%m-%d %H:%M} · 텍스트 기반(설문 확정 전)</p>
-<b>최종 정리본</b>{nav_final}<b>추가 분석</b>{nav_extra}<b>방법·신뢰도</b>{nav_method}</nav><main>{panels}</main></div>
+<title>FoD 페르소나 보고서</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"><style>:root{{--bg:#f6f5f2;--fg:#191a1d;--muted:#5f6268;--faint:#8b8e94;--card:#ffffff;--line:#e2dfd8;--accent:#b8361f;--accent-ink:#9c2c18;--band:#1d2a47;--soft:#f6e9e5;--zebra:#faf9f6;--heat:184,54,31;--rail:#1d2a47}}
+@media (prefers-color-scheme:dark){{:root:not([data-theme="light"]){{--bg:#131416;--fg:#ebe9e5;--muted:#a9abb0;--faint:#80838a;--card:#1b1c1f;--line:#2e3034;--accent:#ff7a5c;--accent-ink:#ff9a80;--band:#9fb3e0;--soft:#2b1f1c;--zebra:#18191b;--heat:255,122,92;--rail:#161d2e}}}}
+:root[data-theme="dark"]{{--bg:#131416;--fg:#ebe9e5;--muted:#a9abb0;--faint:#80838a;--card:#1b1c1f;--line:#2e3034;--accent:#ff7a5c;--accent-ink:#ff9a80;--band:#9fb3e0;--soft:#2b1f1c;--zebra:#18191b;--heat:255,122,92;--rail:#161d2e}}
+*{{box-sizing:border-box}}
+html,nav.side,.tw,main{{scrollbar-width:none}}html::-webkit-scrollbar,nav.side::-webkit-scrollbar,.tw::-webkit-scrollbar{{display:none}}
+body{{margin:0;background:var(--bg);color:var(--fg);font:16px/1.72 "Pretendard Variable","Pretendard",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;word-break:keep-all;-webkit-font-smoothing:antialiased}}
+::selection{{background:var(--accent);color:#fff}}
+a{{color:var(--accent-ink);text-underline-offset:3px}}
+:focus-visible{{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}}
+
+/* 틀: 왼쪽 목차 레일 + 읽기 기둥 */
+.wrap{{display:grid;grid-template-columns:272px minmax(0,1fr);min-height:100vh}}
+nav.side{{position:sticky;top:0;height:100vh;overflow:auto;padding:28px 18px 40px;background:var(--rail);color:#e8ecf5}}
+nav.side h1{{font-size:15px;line-height:1.45;margin:0 0 6px;color:#fff;letter-spacing:-.01em}}
+nav.side p{{font-size:12.5px;line-height:1.5;color:#b9c2d6;margin:0 0 18px}}
+nav.side details{{margin:0;border-top:1px solid #ffffff1f}}
+nav.side summary{{font-size:12px;font-weight:700;color:#b9c2d6;letter-spacing:.04em;padding:14px 10px 6px;list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px}}
+nav.side summary::-webkit-details-marker{{display:none}}
+nav.side summary::after{{content:"";width:6px;height:6px;margin-left:auto;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translateY(-2px);transition:transform .2s}}
+nav.side details:not([open]) summary::after{{transform:rotate(-45deg)}}
+nav.side a{{display:block;padding:6px 10px;margin:1px 0 1px;border-radius:8px;color:#d7dded;text-decoration:none;font-size:14.5px;line-height:1.45}}
+nav.side a:hover{{background:#ffffff14;color:#fff}}
+nav.side a.on{{background:#fff;color:#1d2a47;font-weight:650}}
+nav.side details:last-child{{padding-bottom:8px}}
+
+main{{padding:56px 56px 80px;max-width:1080px;width:100%;margin:0 auto}}
+.panel{{display:none}}.panel.on{{display:block}}
+
+/* 타이포 */
+h2{{font-size:30px;line-height:1.3;margin:0 0 18px;letter-spacing:-.025em;text-wrap:balance}}
+h3{{font-size:21px;line-height:1.4;margin:0;letter-spacing:-.015em}}
+h3.sub{{font-size:16px;margin:34px 0 10px;letter-spacing:-.01em}}
+h3.sec{{font-size:20px;margin:56px 0 14px}}
+p{{margin:10px 0;max-width:70ch}}
+small,.muted{{color:var(--muted)}}.muted{{font-size:14.5px}}
+
+/* 결론 블록: 굵은 결론 + 설명. 테두리 강조 대신 바탕 톤 */
+.ins{{background:var(--soft);border-radius:14px;padding:20px 24px;margin:18px 0 28px;color:var(--muted);font-size:15.5px;max-width:78ch}}
+.ins b{{display:block;font-size:19px;line-height:1.5;color:var(--fg);margin-bottom:8px;letter-spacing:-.01em;text-wrap:balance}}
+.ins small{{display:block;font-size:14.5px}}
+
+/* 표 */
+.tw{{overflow-x:auto;margin:16px 0 8px;border:1px solid var(--line);border-radius:14px;background:var(--card)}}
+.t{{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}}
+.t th,.t td{{border-bottom:1px solid var(--line);padding:11px 14px;text-align:left;vertical-align:top}}
+.t thead th{{color:var(--muted);font-weight:600;font-size:13px;white-space:nowrap;background:var(--zebra)}}
+.t tbody tr:last-child>*{{border-bottom:0}}
+.t tbody th{{font-weight:600}}
+.heat td{{text-align:center}}
+.tag{{display:inline-block;white-space:nowrap;background:var(--soft);color:var(--accent-ink);border-radius:999px;padding:3px 10px;margin:2px 3px 2px 0;font-size:12.5px;line-height:1.4;text-decoration:none}}
+
+/* 1장 흐름 */
+.flow{{display:grid;grid-template-columns:repeat(5,1fr);gap:0;margin:20px 0;border:1px solid var(--line);border-radius:14px;background:var(--card);overflow:hidden}}
+.flow div{{padding:16px 18px;border-right:1px solid var(--line)}}.flow div:last-child{{border-right:0}}
+.flow b,.flow span,.flow strong{{display:block}}.flow span{{font-size:13px;color:var(--muted);margin:6px 0 10px;line-height:1.5}}.flow strong{{font-size:22px;color:var(--fg);font-variant-numeric:tabular-nums;letter-spacing:-.01em}}
+.tracks{{display:grid;grid-template-columns:1fr 1fr;gap:12px}}.tracks div{{background:var(--card);border:1px solid var(--line);padding:16px 18px;border-radius:14px}}
+
+/* 그림 */
+.net{{display:block;width:100%;max-width:880px;margin:18px 0;padding:8px;background:var(--card);border:1px solid var(--line);border-radius:14px}}.nl{{font-size:12px;fill:var(--fg)}}
+
+/* 페르소나 카드 */
+.card{{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px;margin:28px 0;scroll-margin-top:24px}}
+.card header{{display:flex;justify-content:space-between;gap:24px;align-items:flex-start}}
+.card header .tagline{{color:var(--accent-ink);font-weight:600;font-size:14px;margin:6px 0 0}}
+.kpi{{border-left:1px solid var(--line);padding:4px 0 4px 20px;min-width:170px}}.kpi small{{display:block}}.kpi b{{display:block;font-size:28px;color:var(--fg);font-variant-numeric:tabular-nums;letter-spacing:-.02em}}
+.insight{{background:var(--soft);border-radius:12px;padding:14px 18px;margin:18px 0}}.insight ul{{margin:6px 0;padding-left:18px}}
+.grid3{{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:14px;margin:18px 0}}.grid3 section{{background:var(--zebra);border-radius:12px;padding:16px}}.grid3 h3.sub{{margin-top:0}}
+.mini th{{width:70px;text-align:left;font-weight:600;font-size:13px;vertical-align:top;padding:4px 8px 4px 0}}.mini td{{font-size:14px;padding:4px 0}}
+.feat p{{margin:0 0 10px;font-size:14px}}
+.band{{background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:15px}}
+.needs td{{font-size:14px}}.q{{color:var(--muted);font-size:13.5px}}.q details{{margin:6px 0 0}}.q summary{{font-weight:500;color:var(--accent-ink)}}
+.crow{{font-size:13px;margin:8px 0}}
+.bar{{position:relative;height:20px;background:var(--line);border-radius:6px;overflow:hidden;min-width:60px}}.bar span{{position:absolute;inset:0 auto 0 0;border-radius:6px}}.bar em{{position:absolute;right:4px;top:3px;padding:0 5px;border-radius:4px;background:var(--card);font-size:11.5px;line-height:14px;font-style:normal;font-variant-numeric:tabular-nums}}
+details{{margin:14px 0}}summary{{cursor:pointer;font-weight:600}}
+.back{{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-top:10px}}
+
+/* 아이디어·처방 묶음 */
+.ideas{{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin:18px 0}}
+.idea{{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;font-size:14.5px}}.idea h4,.idea h3.sub{{font-size:17px;margin:6px 0 10px}}.idea p{{margin:8px 0}}
+
+/* 첫 화면: 문서형 */
+.lede{{max-width:66ch}}
+.lede h2{{font-size:38px;line-height:1.25;margin:0 0 14px;letter-spacing:-.03em}}
+.lede .stand{{font-size:18px;line-height:1.7;color:var(--muted);margin:0}}
+.facts{{display:flex;flex-wrap:wrap;gap:8px 28px;margin:22px 0 0;padding:16px 0 0;border-top:1px solid var(--line);font-size:14.5px;color:var(--muted)}}
+.facts b{{color:var(--fg);font-size:17px;font-variant-numeric:tabular-nums;margin-right:6px}}
+.rows{{border-top:1px solid var(--fg);margin-top:8px}}
+.row{{display:grid;grid-template-columns:minmax(220px,1fr) 2fr auto;gap:28px;align-items:baseline;padding:20px 0;border-bottom:1px solid var(--line);color:var(--fg);text-decoration:none}}
+.row:hover .go{{color:var(--accent)}}
+.row b{{font-size:18px;line-height:1.45;letter-spacing:-.01em}}
+.row p{{margin:0;color:var(--muted);font-size:15px}}
+.row .go{{font-size:13.5px;font-weight:600;color:var(--faint);white-space:nowrap}}
+.row.lead b{{font-size:24px;color:var(--accent-ink)}}
+.prow{{display:grid;grid-template-columns:minmax(200px,1.1fr) 140px 2fr;gap:24px;align-items:center;padding:16px 0;border-bottom:1px solid var(--line);color:var(--fg);text-decoration:none}}
+.prow:hover b{{color:var(--accent-ink)}}
+.prow b{{font-size:16.5px;display:block}}.prow small{{display:block;font-size:13px}}
+.prow p{{margin:0;font-size:14.5px;color:var(--muted)}}.prow p.rx{{color:var(--fg);margin-top:4px}}
+
+/* 방법 상자 */
+.mlink{{display:inline-block;margin-top:14px;font-size:14px;color:var(--accent-ink);font-weight:600;text-decoration:none}}
+details.method{{margin:44px 0 0;border:1px solid var(--line);border-radius:14px;background:var(--card)}}
+details.method>summary{{padding:16px 20px;font-size:14.5px;color:var(--muted);list-style:none;display:flex;align-items:center}}
+details.method>summary::-webkit-details-marker{{display:none}}
+details.method>summary::after{{content:"";width:7px;height:7px;margin-left:auto;border-right:1.5px solid var(--accent);border-bottom:1.5px solid var(--accent);transform:rotate(45deg);transition:transform .2s}}
+details.method[open]>summary::after{{transform:rotate(-135deg)}}
+details.method .mbody{{padding:0 20px 18px;font-size:14.5px;display:grid;grid-template-columns:1fr 1fr;gap:4px 32px}}
+details.method .mbody ul{{margin:6px 0;padding-left:18px}}
+.msec h3.sub{{margin:16px 0 4px;font-size:13px;color:var(--accent-ink);letter-spacing:.02em}}
+
+/* 이전·다음 */
+nav.pager{{display:flex;justify-content:space-between;gap:12px;margin-top:56px;padding-top:20px;border-top:1px solid var(--line)}}
+nav.pager a{{display:flex;flex-direction:column;gap:2px;max-width:48%;padding:12px 16px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--fg);font-weight:600;text-decoration:none;font-size:14.5px}}
+nav.pager a:hover{{border-color:var(--accent)}}nav.pager a small{{font-weight:500}}nav.pager a.nx{{text-align:right;margin-left:auto}}
+
+nav.side .menu{{display:none;align-items:center;justify-content:space-between;gap:12px;width:100%;background:none;border:0;color:#fff;font:inherit;padding:0;cursor:pointer}}
+nav.side .menu span{{font-size:13px;color:#b9c2d6;border:1px solid #ffffff40;border-radius:999px;padding:4px 12px}}
+@media (max-width:860px){{
+ .wrap{{grid-template-columns:minmax(0,1fr)}}
+ nav.side{{position:sticky;top:0;z-index:5;height:auto;max-height:none;padding:12px 16px}}
+ nav.side h1{{font-size:14px;margin:0}}nav.side p{{display:none}}
+ nav.side .groups{{display:none}}nav.side.open .groups{{display:block;max-height:70vh;overflow:auto;margin-top:8px}}
+ nav.side .menu{{display:flex}}
+ main{{padding:28px 16px 56px}}
+ .flow,.grid3,.tracks,.back,details.method .mbody{{grid-template-columns:1fr}}.flow div{{border-right:0;border-bottom:1px solid var(--line)}}
+ .card{{padding:20px}}.card header{{flex-direction:column}}.kpi{{border-left:0;padding:0}}
+ h2{{font-size:24px}}.lede h2{{font-size:28px}}.lede .stand{{font-size:16px}}
+ .row,.prow{{grid-template-columns:1fr;gap:6px}}.row .go{{display:none}}
+}}
+</style></head><body><div class="wrap"><nav class="side" aria-label="목차"><h1>{e(title)}</h1><p>생성 {pd.Timestamp.now():%Y-%m-%d %H:%M} · 텍스트 기반(설문 확정 전)</p>
+<button class="menu" type="button" aria-expanded="false" onclick="const n=this.closest('nav');n.classList.toggle('open');this.setAttribute('aria-expanded',n.classList.contains('open'))"><span>목차</span></button><div class="groups">{nav}</div></nav><main>{panels}</main></div>
 <script>
-const show=id=>{{document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on',p.id===id));document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.go===id));window.scrollTo(0,0)}};
-document.addEventListener('click',ev=>{{const a=ev.target.closest('[data-go]');if(a){{ev.preventDefault();history.replaceState(null,'','#'+a.dataset.go);show(a.dataset.go)}}}});
-show(location.hash.slice(1)||'s1');
+const show=(id,card)=>{{if(!document.getElementById(id))id='s0';document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on',p.id===id));
+document.querySelectorAll('nav.side a').forEach(a=>{{const on=a.dataset.go===id;a.classList.toggle('on',on);if(on)a.closest('details').open=true}});
+const c=card&&document.getElementById(card);c?c.scrollIntoView():window.scrollTo(0,0)}};
+document.addEventListener('click',ev=>{{const a=ev.target.closest('[data-go]');if(a){{ev.preventDefault();document.querySelector('nav.side').classList.remove('open');history.replaceState(null,'','#'+a.dataset.go);show(a.dataset.go,a.dataset.card)}}}});
+show(location.hash.slice(1)||'s0');
 </script></body></html>"""
 OUT.write_text(page, encoding="utf-8")
 print("→", OUT.relative_to(ROOT), f"({len(page) / 1e3:.0f} KB)")

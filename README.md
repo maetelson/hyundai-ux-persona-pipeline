@@ -56,6 +56,10 @@ pilot/   02_normalize    02_5_time_window  03_sample  04_open_code  05_label    
 | 추가 분석 | `run/07_extra.py` | 가격 앵커(금액 파싱), 스토어 상품 성과(Wilson CI), 대체재 경쟁 지도(lift·log-odds), 텍스트 Kano 추정(부트스트랩 안정성). API 호출 없음 | `data/output/tables/extra/` |
 | 추가 분석 2 | `run/07_2_extra.py` | 앱 리뷰 IPA(별점 회귀), JTBD 전환의 4가지 힘, FSD 구독 전환 중단 시계열, NMF 토픽 ↔ 코드북 검증, 대응 분석. API 호출 없음 | `data/output/tables/extra/` |
 | 종합 | `run/07_3_synthesis.py` | 기능별 FoD 후보 점수표(순위 평균 + 가중치 몬테카를로 민감도), 세그먼트별 FoD 처방 | `s1_scorecard.csv`, `s2_prescriptions.csv` |
+| 설문 연결 | `run/07_4_survey_items.py` | 세그먼트를 가르는 상황 문항 앞으로 선택(다항 로지스틱 CV) → 설문 문항 대응 | `s3_survey_items.csv` |
+| 브랜드 비교 | `run/07_5_brand.py` | 현대·기아·제네시스·테슬라·기타 수입의 FoD 태도, 카이제곱, 기아 스토어 제외 민감도 | `e10_*.csv` |
+| 견고성 | `run/07_6_robustness.py` | 라벨 오차 보정 유병률, 출처별 재군집, 작성자 일관성 | `r_*.csv` |
+| 라벨 정확도 | `pilot/gold_v2.py` | 본 코퍼스 200건 블라인드 정답(코드북 v2) vs 본 라벨 | `v_label_accuracy.csv` |
 | 규칙 검증 | `pilot/rule_validation.py` | 키워드 규칙 판정 4종을 사람 정답 399건으로 정밀도·재현율 측정 | `v_rule_validation.csv` |
 | 보고서 | `run/08_report.py` | 단일 HTML. 최종 정리본(롯데마트 AI 페르소나 구조 참고) + 방법론 M1–M8(방법·변수·신뢰도·한계) | `data/output/report.html` |
 
@@ -104,6 +108,9 @@ python run/06_analyze.py strict
 python run/07_extra.py
 python run/07_2_extra.py
 python run/07_3_synthesis.py
+python run/07_4_survey_items.py
+python run/07_5_brand.py
+python run/07_6_robustness.py
 python run/08_report.py
 ```
 
@@ -178,6 +185,8 @@ data/            (git 제외) raw / stage / gold / eval / output
 ```
 
 ## 다음 단계
+
+텍스트 분석 포화 판정과 남은 일은 [docs/ANALYSIS_STATUS.md](docs/ANALYSIS_STATUS.md)에 있습니다. 삭제 전 동결본: `python run/09_freeze.py freeze`.
 
 - 팀 검수: `need_hierarchy_v1.yaml`, `report_narrative.yaml`, 정답 세트
 - 설문(n≈1,500, FoD 이용자 300명 이상 보강)
