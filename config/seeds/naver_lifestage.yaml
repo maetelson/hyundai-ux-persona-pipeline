@@ -1,0 +1,88 @@
+source_id: naver_lifestage
+endpoints: [cafearticle]
+layer: B
+relevance: relevance_situation.yaml
+source_notes: "연령·생애단계 보정 + 코드북 v2 신규 상황. 시드는 2026-10-09 리서치에서 네이버 카페 검색 API로 실제 1인칭 제목을 확인한 문구. 생애단계 단서어는 반드시 차량어와 함께."
+max_pages: 10
+sorts: [sim, date]
+early_stop_low_yield_pages: 2
+early_stop_min_kept_ratio: 0.30
+negative_terms: [운전연수, 도로연수, 세금 돌려받기]
+core_seeds:
+  # L_FIRSTCAR (20대 사회초년생·첫차)
+  - {seed: 사회초년생 첫차 할부, code: L_FIRSTCAR}
+  - {seed: 첫차 아반떼 캐스퍼 고민, code: L_FIRSTCAR}
+  - {seed: 초보운전 첫차 주차 무서워요, code: L_FIRSTCAR}
+  - {seed: 첫차 보험료 너무 비싸, code: L_FIRSTCAR}
+  - {seed: 20대 첫차 중고 신차, code: L_FIRSTCAR}
+  - {seed: 초보운전 스티커 후방 주차, code: L_FIRSTCAR}
+  - {seed: 아버지 차 물려받아, code: L_FIRSTCAR}
+  - {seed: 월급 300 첫차, code: L_FIRSTCAR}
+  # L_NEWLYWED
+  - {seed: 결혼 후 차 한대 처분, code: L_NEWLYWED}
+  - {seed: 예비신랑 차 바꾸기 결혼, code: L_NEWLYWED}
+  - {seed: 예비신혼부부 신차 중고차, code: L_NEWLYWED}
+  - {seed: 신혼 전기차 고민, code: L_NEWLYWED}
+  - {seed: 결혼준비 차 구매, code: L_NEWLYWED}
+  - {seed: 차 두 대 있는 집 카시트, code: L_NEWLYWED}
+  # L_INFANT
+  - {seed: 유모차 트렁크 안들어가요, code: L_INFANT}
+  - {seed: 신생아 카시트 차 바꿔야, code: L_INFANT}
+  - {seed: 둘째 생기면 차 바꿔야, code: L_INFANT}
+  - {seed: 아기 태우고 장거리 휴게소, code: L_INFANT}
+  - {seed: 카시트 장착 뒷좌석, code: L_INFANT}
+  - {seed: 아이 둘 카시트 3개, code: L_INFANT}
+  - {seed: 임신 중 운전 안전벨트, code: L_INFANT}
+  - {seed: 아기 차에서 재우기 시동, code: L_INFANT}
+  # L_SCHOOLKID (초·중·고 학부모)
+  - {seed: 학원 라이딩 차에서 대기, code: L_SCHOOLKID}
+  - {seed: 아이 학원 픽업 주차, code: L_SCHOOLKID}
+  - {seed: 등하원 라이딩 차, code: L_SCHOOLKID}
+  - {seed: 학원 라이딩 머리아프네요, code: L_SCHOOLKID}
+  - {seed: 초등 등교 차로 데려다, code: L_SCHOOLKID}
+  - {seed: 초등 저학년 차타고 이동, code: L_SCHOOLKID}
+  - {seed: 대치 학원가 라이딩 주차, code: L_SCHOOLKID}
+  - {seed: 고등학생 학원 픽업, code: L_SCHOOLKID}
+  - {seed: 수능 라이딩, code: L_SCHOOLKID}
+  - {seed: 아이 운전연습 시켜, code: L_SCHOOLKID}
+  # L_EMPTYNEST (부모님 모시기·은퇴·60대+)
+  - {seed: 시어머니 모시고 병원, code: L_EMPTYNEST}
+  - {seed: 어머니 모시고 대학병원 주차, code: L_EMPTYNEST}
+  - {seed: 어머니 휠체어 트렁크, code: L_EMPTYNEST}
+  - {seed: 은퇴 후 차 바꾸기, code: L_EMPTYNEST}
+  - {seed: 은퇴 후 캠핑카, code: L_EMPTYNEST}
+  - {seed: 부모님 운전 언제까지, code: L_EMPTYNEST}
+  - {seed: 아버지 운전 그만하시라고, code: L_EMPTYNEST}
+  - {seed: 손주 카시트 할머니 차, code: L_EMPTYNEST}
+  - {seed: 시니어 운전 후방카메라, code: L_EMPTYNEST}
+  - {seed: 70대 아버지 차 바꿔드리려, code: L_EMPTYNEST}
+  - {seed: 60대 운전 야간운전 시력, code: L_EMPTYNEST}
+  - {seed: 부모님 운전면허 반납, code: L_EMPTYNEST}
+  # 코드북 v2 신규 상황
+  - {seed: 차박 무시동 히터 배터리, code: S_LEISURE}
+  - {seed: 차박 평탄화 후기, code: S_LEISURE}
+  - {seed: V2L 캠핑 후기, code: S_LEISURE}
+  - {seed: 은퇴 후 차박 여행, code: S_LEISURE}
+  - {seed: 캠핑 짐 트렁크 테트리스, code: S_CARGO}
+  - {seed: 골프백 트렁크 몇개, code: S_CARGO}
+  - {seed: 루프박스 달까 고민, code: S_CARGO}
+  - {seed: 휠체어 트렁크 싣고, code: S_CARGO}
+  - {seed: 강아지 차에 태우고 에어컨, code: S_PET}
+  - {seed: 반려견 차에 두고 잠깐, code: S_PET}
+  - {seed: 강아지 차만 타면 토할 때, code: S_PET}
+  - {seed: 강아지 차에 태워봤는데, code: S_PET}
+  - {seed: 사제 원격시동 장착 후기, code: S_AFTERMARKET}
+  - {seed: 순정 스마트키 원격시동 경보기, code: S_AFTERMARKET}
+  - {seed: 멀티팩 사제 순정 차이, code: S_AFTERMARKET}
+  - {seed: 블랙박스 보조배터리 필수, code: S_AFTERMARKET}
+  - {seed: 무시동히터 설치, code: S_AFTERMARKET}
+  - {seed: 발렛 맡기고 블랙박스 확인, code: S_HANDOVER}
+  - {seed: 발렛 차량 긁힘, code: S_HANDOVER}
+  - {seed: 대리운전 시트 미러 원위치, code: S_HANDOVER}
+  - {seed: 웨딩홀 발렛 주차, code: S_HANDOVER}
+  - {seed: 차에서 쉴때 방전, code: S_INCAR_REST}
+  - {seed: 점심시간 차에서 쉬기, code: S_INCAR_REST}
+  - {seed: 정차 중 에어컨 공회전, code: S_INCAR_REST}
+  - {seed: 차 안에서 낮잠, code: S_INCAR_REST}
+  - {seed: 지하주차장 기둥 긁었어요, code: S_PARK_TIGHT}
+  - {seed: 주차 위치 기억 못함, code: S_PARK_SKILL}
