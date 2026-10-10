@@ -279,16 +279,16 @@ if (X / "e1_price_anchors.csv").exists():
     pa = pa[pa.n_mentions >= 10].sort_values("n_mentions", ascending=False)
     S.append(("x1", "E1. 가격 앵커", "extra", f"""<h2>E1. 사람들이 말하는 기능 가격 (가격 앵커)</h2>
 <p>본문에서 기능 이름 앞뒤 60자 안에 있는 금액 표현을 뽑았습니다(1천 원~500만 원, 언급 10건 이상만). '기간 미상'에는 선택 사양·용품 가격이 섞여 있습니다.</p>
-<div class="ins"><b>테슬라 FSD 월 15만 원 전환(2026-08)이 가장 큰 가격 기준점</b>주행 보조 가격 언급의 대부분이 이 소식이고, 반응이 있는 글의 약 65%가 '비싸다'입니다. 커넥티드 서비스는 월 5,500~9,900원, 원격 주차 평생 이용권은 50만 원이 반복해서 나옵니다.</div>
-{tbl(pa, [("feature", "기능"), ("period", "기간"), ("n_posts", "글"), ("p25", "하위 25%"), ("median", "중앙값"), ("p75", "상위 25%"), ("n_reaction", "반응 글"), ("expensive_share", "'비싸다' 비율")],
-     {"p25": won, "median": won, "p75": won, "expensive_share": pct})}{method_link('m9')}"""))
+<div class="ins"><b>테슬라 FSD 월 15만 원 전환(2026-08)이 가장 큰 가격 기준점</b>주행 보조 가격 언급의 대부분이 이 소식입니다. 커넥티드 서비스는 월 5,500~9,900원, 원격 주차 평생 이용권은 50만 원이 반복해서 나옵니다. '비싸다/적정' 반응 판정은 규칙 검증 정밀도가 0.29라 표시하지 않습니다(V 메뉴).</div>
+{tbl(pa, [("feature", "기능"), ("period", "기간"), ("n_posts", "글"), ("p25", "하위 25%"), ("median", "중앙값"), ("p75", "상위 25%"), ],
+     {"p25": won, "median": won, "p75": won})}{method_link('m9')}"""))
 
 if (X / "e2_store_by_group.csv").exists():
     sg, sv, sp = csv("e2_store_by_group", X), csv("e2_store_by_vehicle", X), csv("e2_store_by_product", X)
     sg = sg[sg.n >= 10]
     iss = ["적용·설치 실패", "호환·차종 차이", "가격·결제", "디자인 만족", "기능 효용"]
     S.append(("x2", "E2. 스토어 상품 성과", "extra", f"""<h2>E2. 기아 커넥트 스토어 상품 성과 (리뷰 {int(sg.n.sum()):,}건)</h2>
-<div class="ins"><b>테마는 '디자인', 기능형은 '효용'으로 만족 — 불만은 사용 단계에 몰림</b>원격 주차의 부정 비율(11%)은 테마(6%)의 두 배 가까이이고, 가격·결제 언급이 17%로 가장 높습니다. 스트리밍은 표본이 작지만(12건) 부정이 압도적입니다.</div>
+<div class="ins"><b>테마는 '디자인', 기능형은 '효용'으로 만족 — 불만은 사용 단계에 몰림</b>원격 주차의 부정 비율(11%)은 테마(6%)의 두 배 가까이입니다. 가격·결제 언급(1+1·무료 이벤트 포함)은 테마 28%, 원격 주차 22%로 할인·이벤트가 구매 계기로 자주 나옵니다. 스트리밍은 표본이 작지만(12건) 부정이 압도적입니다. '호환·차종 차이' 열은 검증 정밀도 0이라 해석하지 않습니다.</div>
 {tbl(sg, [("group", "상품군"), ("n", "리뷰"), ("neg_share", "부정"), ("neg_ci_lo", "부정 95% 하한"), ("neg_ci_hi", "상한"), ("pos_share", "긍정")] + [(c, c) for c in iss] + [("neg_top_journey", "부정 글의 저니 단계")],
      {c: pct for c in ["neg_share", "neg_ci_lo", "neg_ci_hi", "pos_share"] + iss})}
 <h4>차종별 (상위 12)</h4>{tbl(sv, [("vehicle", "차종"), ("n", "리뷰"), ("neg_share", "부정"), ("neg_ci_lo", "95% 하한"), ("neg_ci_hi", "상한")], {c: pct for c in ["neg_share", "neg_ci_lo", "neg_ci_hi"]})}
@@ -329,11 +329,11 @@ if (X / "e4_kano.csv").exists():
 <text class="nl" x="{W - P}" y="{P}" text-anchor="end">일원</text><text class="nl" x="{P + 4}" y="{P}">매력</text><text class="nl" x="{W - P}" y="{H - P - 4}" text-anchor="end">당연</text><text class="nl" x="{P + 4}" y="{H - P - 4}">무관심</text>
 <text class="nl" x="{W / 2}" y="{H - 12}" text-anchor="middle">없어서 불만 비율 →</text><text class="nl" x="14" y="{H / 2}" transform="rotate(-90 14 {H / 2})" text-anchor="middle">있어서 기쁨 비율 →</text>{pts}</svg>"""
     S.append(("x4", "E4. Kano 추정", "extra", f"""<h2>E4. 텍스트로 추정한 Kano 분류와 유료화 반감</h2>
-<div class="ins"><b>열선·통풍은 '당연' + 유료화 반감 22% — FoD 후보에서 빼야 할 신호</b>테마·라이팅·영상은 '매력'으로 유료화 반감이 낮고, 원격 주차·회생 제동은 '일원'(있으면 만족, 없으면 불만)입니다. 디지털 키·주차 감시는 '당연'에 가까워 기본 탑재 기대가 큽니다.</div>
+<div class="ins"><b>안정적인 분류는 4개뿐 — 디지털 키·열선은 '당연', 테마는 '매력', 주행 보조는 '무관심'</b>열선·통풍은 유료화 반감도 22%로 FoD 후보에서 빼야 할 신호입니다. 나머지 기능은 부트스트랩 안정성이 0.7 미만이고, '없어서 불만' 규칙 정밀도가 0.57(수정 후)이라 분류는 가설로만 봅니다. 규칙을 고치자 원격 주차(일원→매력) 등 여러 기능의 분류가 바뀌었습니다.</div>
 {svg}
 {tbl(kn, [("feature", "기능"), ("n", "언급 글"), ("absent_complaint", "없어서 불만"), ("present_delight", "있어서 기쁨"), ("kano_class", "추정 분류"), ("boot_stability", "부트스트랩 안정성"), ("pay_resistance", "유료화 반감")],
      {"absent_complaint": lambda v: f"{v:.1%}", "present_delight": lambda v: f"{v:.1%}", "pay_resistance": lambda v: f"{v:.1%}"})}
-<p class="muted">점선은 기능 간 중앙값. 안정성 0.7 미만 기능(원격 제어, 영상·게임, 캠핑 모드, OTA)은 분류가 경계에 있어 설문 Kano 문항으로 확정해야 합니다.</p>{method_link('m12')}"""))
+<p class="muted">점선은 기능 간 중앙값. 안정성 0.7 미만 기능은 분류가 경계에 있어 설문 Kano 문항으로 확정해야 합니다.</p>{method_link('m12')}"""))
 
 def scatter(df, xcol, ycol, label, W=640, H=400, P=50, color=None, xlab="", ylab="", xline=None, yline=None, size=None):
     xs, ys = df[xcol], df[ycol]
@@ -410,6 +410,40 @@ if (X / "e9_ca_points.csv").exists():
 <div class="ins"><b>가로축 = '가족' 대 '차 기술', 세로축 = '현대·기아 커넥티드' 대 '입문·전기차'</b>영유아·학령기 부모와 여성 단서는 아이 동승·적재와 함께 왼쪽에 모이고, 현대·기아는 개인화·원격 제어·내비와 위쪽에, 첫차·신혼은 주차 실력·교체 고민과 아래쪽에 모입니다. 부모 단서가 아이 동승·적재와 붙는 것은 아이 동승 부모 세그먼트와 일치하고, EV·수입 단서는 돈 계산·주행 보조·교체와 같은 쪽(구매 결정자 세그먼트의 상황)에 있습니다.</div>
 {scatter(ca, "x", "y", "nm", W=720, H=480, xlab=f"1축 ({inr[0]:.0%})", ylab=f"2축 ({inr[1]:.0%})", xline=0, yline=0, color=lambda r: "var(--band)" if r.kind == "who" else "var(--accent)", size=lambda r: 3 + math.sqrt(r.mass) * 18)}
 <p class="muted">남색 = 사람 단서(생애단계·성별·브랜드·EV), 빨강 = 상황 코드. 가까울수록 함께 나오는 경향. 1·2축 설명력 합 {inr[0] + inr[1]:.0%}.</p>{method_link('m17')}"""))
+
+if (X / "s1_scorecard.csv").exists():
+    sc = csv("s1_scorecard", X)
+    DEC_C = {"FoD 판매 후보": "var(--accent)", "기본 탑재 권장": "var(--band)", "보류": "var(--muted)"}
+    rows_ = ""
+    for d in ("FoD 판매 후보", "기본 탑재 권장", "보류"):
+        for r in sc[sc.decision == d].sort_values("mean_rank").itertuples():
+            sens_ = "" if pd.isna(r.p_top_half) else f"{r.p_top_half:.0%} (순위 {r.rank_p05:.0f}~{r.rank_p95:.0f})"
+            rows_ += (f'<tr><th>{e(r.feature)}</th><td><span class="tag" style="color:{DEC_C[d]}">{d}</span></td><td>{r.mean_rank:.2f}</td>'
+                      f'<td>{r.push:.0%}</td><td>{r.pull:.0%}</td><td>{r.anxiety:.0%}</td><td>{r.habit:.0%}</td><td>{r.pay_resistance:.1%}</td>'
+                      f'<td>{e(r.kano_class.split("(")[0])} <small>{r.boot_stability:.2f}</small></td><td>{e(sens_)}</td><td><small>{e(r.price_ref if isinstance(r.price_ref, str) else "")}</small></td></tr>')
+    S.append(("x10", "S1. FoD 후보 점수표", "extra", f"""<h2>S1. 기능별 FoD 후보 점수표 (E1~E6 종합)</h2>
+<div class="ins"><b>FoD로 팔 것: 회생 제동·화면 테마가 가중치와 무관하게 상위 / 기본 탑재: 디지털 키·열선 / 보류: 영상·게임·라이팅·OTA·주행 보조</b>회생 제동과 테마는 가중치를 2,000번 무작위로 바꿔도 92~97%가 상위 절반입니다. 원격 주차·원격 제어·캠핑 모드·주차 감시는 58~63%로 '후보이나 가중치에 민감'합니다. 주행 보조(FSD)는 수요는 크지만 불안이 커서 보류입니다.</div>
+<p>기준 6개(수요·불편·매력은 높을수록, 불안·기존 대안·유료화 반감은 낮을수록 좋음)의 순위 평균. 판정 규칙은 결과를 보기 전에 정했습니다: 유료화 반감 ≥10% 또는 Kano '당연'(안정성 ≥0.7) → 기본 탑재 권장, 나머지는 순위 평균 중앙값으로 판매 후보/보류.</p>
+<table class="t"><thead><tr><th>기능</th><th>판정</th><th>순위 평균</th><th>불편</th><th>매력</th><th>불안</th><th>대안</th><th>유료화 반감</th><th>Kano <small>안정성</small></th><th>상위 절반 확률</th><th>가격 앵커</th></tr></thead><tbody>{rows_}</tbody></table>{method_link('m18')}"""))
+
+if (X / "s2_prescriptions.csv").exists():
+    pr = csv("s2_prescriptions", X)
+    BLK = {"habit": "기존 대안", "anxiety": "불안", "weak": "약함"}
+    cards = "".join(f"""<div class="idea"><small>n={r.n:,} · 막는 힘: {BLK.get(r.blocking, r.blocking)} · 대체 행동 중 {e(r.substitute_top)}</small><h4>{e(seg_name(r.segment))}</h4>
+<p><b>맞는 기능</b> {e(r.features)}</p>
+<p><b>4가지 힘</b> 불편 {r.push:.0%} · 매력 {r.pull:.0%} · 불안 {r.anxiety:.0%} · 대안 {r.habit:.0%}</p>
+<p><b>가격 앵커</b> {e(r.price_ref) if isinstance(r.price_ref, str) else "—"}</p>
+<p class="band">{e(r.condition)}</p></div>""" for r in pr.itertuples())
+    S.append(("x11", "S2. 페르소나별 FoD 처방", "extra", f"""<h2>S2. 페르소나별 FoD 처방</h2>
+<div class="ins"><b>대부분의 세그먼트를 막는 건 '불안'이 아니라 '기존 대안'</b>사제 보충파(사제 91%)·문콕 방어자(사제 61%)는 블랙박스 등 사제 용품, 커넥티드 관리자·공간 활용족은 직접 해결이 자리를 차지하고 있습니다. 불안이 막는 건 구매 결정자뿐이고(망설임·본전 계산), 여기에는 체험·짧은 기간권이 맞습니다. 아이 동승 부모는 FoD 기능 언급 자체가 적어 판매 조건보다 상황 노출이 먼저입니다.</div>
+<div class="ideas">{cards}</div>
+<p class="muted">맞는 기능 = 세그먼트 안 언급 비율이 전체의 1.2배 넘고 30건 이상. 판매 조건은 막는 힘·주요 불안 태도에서 규칙으로 정했습니다(M18).</p>{method_link('m18')}"""))
+
+if (X / "v_rule_validation.csv").exists():
+    vr = csv("v_rule_validation", X)
+    S.append(("x12", "V. 규칙 판정 검증", "extra", f"""<h2>V. 키워드 규칙 판정 검증 (사람 정답 399건)</h2>
+<div class="ins"><b>가격 반응(0.29)·없어서 불만(0.45)은 원래 규칙이 부정확 — 가격 반응은 보고서에서 빼고, 나머지 규칙은 고쳐서 다시 돌렸습니다</b>'없어서 불만'은 고장('안 들어와요')·출금('돈이 빠져나가') 오탐을 지워 0.57로, 스토어 '가격·결제'는 1+1·무료 이벤트를 넣어 재현율 0.21 → 0.96으로 올렸습니다. 단 수정 후 수치는 <b>같은 표본으로 다시 잰 것이라 낙관적</b>입니다. '호환·차종 차이'는 정답이 2건뿐이라 판단할 수 없습니다.</div>
+{tbl(vr, [("check", "판정"), ("rule", "규칙"), ("type", "지표"), ("n", "n"), ("value", "값"), ("ci_lo", "95% 하한"), ("ci_hi", "상한")], {"value": lambda v: "" if pd.isna(v) else f"{v:.2f}", "ci_lo": lambda v: f"{v:.2f}", "ci_hi": lambda v: f"{v:.2f}"})}{method_link('m19')}"""))
 
 # ---------------- 방법·신뢰도 (논문형) ----------------
 def method(mid, title, methods, variables, reliability, limits):
@@ -503,7 +537,7 @@ S.append(method("m9", "M9. 가격 앵커 추출 (E1)",
      "같은 창의 '비싸다/부담'·'저렴/가성비' 표현으로 반응 판정"],
     ["text, wtp_signal(라벨), 기능 사전(run/07_extra.py FEATURES)"],
     ["파서 단위 검사 7종 통과", "기능·기간별 사분위수, 언급 10건 이상만 표시"],
-    ["창 안의 다른 금액(차값·옵션 묶음가)이 섞일 수 있음 — '기간 미상'은 해석 주의", "반응 판정 글이 적어(기능당 수~수십 건) '비싸다' 비율은 방향만 참고",
+    ["창 안의 다른 금액(차값·옵션 묶음가)이 섞일 수 있음 — '기간 미상'은 해석 주의", "반응(비싸다/적정) 판정은 사람 검증 정밀도 0.29(99건) — 금액이 다른 기능·차값을 가리키거나 질문형 문장이 많아 보고서에서 제외",
      "같은 기사·글이 여러 카페에 퍼진 경우 중복 언급"]))
 
 S.append(method("m10", "M10. 스토어 상품 성과 (E2)",
@@ -525,7 +559,7 @@ S.append(method("m12", "M12. 텍스트 기반 Kano 추정 (E4)",
      "두 비율을 기능 간 중앙값으로 나눠 4분면: 당연(불만↑기쁨↓)·매력(불만↓기쁨↑)·일원(둘 다↑)·무관심(둘 다↓)",
      "부트스트랩 300회로 같은 분류가 나오는 비율 = 안정성", "유료화 반감 = 태도 라벨 HW잠금 반감·이중결제 반감 비율(Wilson CI)"],
     ["sentiment, attitude, text, 기능 사전"],
-    ["분류 안정성 0.54~1.00 (0.7 미만 4개 기능은 경계)"],
+    ["부트스트랩 분류 안정성은 E4 표 참고(0.7 이상만 해석)", "규칙 정밀도(사람 검증 100건): 없어서 불만 v1 0.45 → v2 0.57(같은 표본 재측정), 있어서 기쁨 0.76"],
     ["정식 Kano는 기능 있음/없음 짝 질문이 필요 — 이 분류는 가설이며 설문으로 확정", "기준이 기능 간 상대값(중앙값)이라 '절대적으로 당연'이라는 뜻이 아님",
      "불만·기쁨 비율이 1~10%로 작아 표현 사전 범위에 민감"]))
 
@@ -566,6 +600,24 @@ S.append(method("m17", "M17. 대응 분석 (E9)",
     ["post_demo(value), situation"],
     [f"관성 설명력 1축 {meta2['e9_inertia'][0]:.0%} · 2축 {meta2['e9_inertia'][1]:.0%} · 3축 {meta2['e9_inertia'][2]:.0%}" if (X / 'e5_e9_meta.json').exists() else ""],
     ["단서가 있는 글만(데모 트랙 커버리지 한계)", "한 글이 여러 단서·코드를 가지면 중복 계산", "대칭 지도에서 행-열 거리는 직접 해석하지 않고 방향만 해석"]))
+
+S.append(method("m18", "M18. FoD 후보 점수표·처방 (S1·S2)",
+    ["기준 6개(수요 = log 언급 수, 불편·매력·불안·기존 대안 = E6, 유료화 반감 = E4)의 기능 간 순위를 평균(Borda)",
+     "판정 규칙(결과 보기 전 고정): 유료화 반감 ≥10% 또는 Kano '당연'(안정성 ≥0.7) → 기본 탑재 권장 / 나머지 중 순위 평균 ≤ 중앙값 → FoD 판매 후보 / 그 외 보류",
+     "민감도: 기준 가중치를 디리클레(1) 분포로 2,000회 뽑아 판매 대상 기능 안에서 순위 재계산 → 상위 절반 확률, 순위 5~95% 구간",
+     "처방: 세그먼트 안 기능 언급 lift > 1.2(30건 이상) / 4가지 힘 중 '불안' vs '기존 대안' 큰 쪽이 막는 힘(둘 다 3% 미만이면 '약함') / 주요 불안 태도 → 판매 조건 대응표(망설임 → 체험·짧은 기간권, 본전 계산 → 기간별 가격 비교, 불신 → 설치 후 환불, 귀속 우려 → 계정 이전, HW잠금·이중결제 반감 → 기본 탑재)"],
+    ["E1 가격 앵커, E4 Kano·유료화 반감, E6 4가지 힘, E3 대체 유형, post_segment"],
+    ["가중치 민감도(상위 절반 확률)를 표에 함께 표시"],
+    ["가격 수용도는 규칙 정밀도가 낮아 점수에 넣지 않고 참고로만 표시", "기준이 모두 텍스트 언급 기반 — 설문 Kano·가격 문항으로 확정 필요",
+     "Kano 분류는 규칙 수정에 민감(E4) — 판정에는 안정성 0.7 이상만 사용"]))
+
+S.append(method("m19", "M19. 키워드 규칙 검증 (V)",
+    ["표본(seed 고정): E4 없어서 불만·있어서 기쁨 판정 글 각 100, E1 가격 반응 판정 99, 기아 스토어 무작위 리뷰 100(문제 유형 5개 다중 라벨)",
+     "정답: Claude Code 세션(Opus 5.5)이 문맥을 읽고 판정 — 팀 검수 전",
+     "규칙 수정 뒤 같은 표본으로 재측정(V1 정밀도, V4 정밀도·재현율), Wilson 95% CI"],
+    ["data/gold/rule_val_v1~v4(.jsonl, _gold.json)"],
+    ["원래 규칙: 없어서 불만 0.45, 있어서 기쁨 0.76, 가격 반응 0.29, 스토어 가격 재현율 0.21"],
+    ["수정 후 수치는 같은 표본 재측정이라 낙관 편향 — 새 표본으로 재검증 필요", "정답자가 한 명(LLM)이라 일치도(κ) 없음", "희귀 유형(호환, 설치 실패)은 표본이 작아 CI가 넓음"]))
 
 # ---------------- 페이지 조립 ----------------
 nav_final = "".join(f'<a href="#{i}" data-go="{i}">{e(t)}</a>' for i, t, g, _ in S if g == "final")

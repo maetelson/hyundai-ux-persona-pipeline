@@ -55,6 +55,8 @@ pilot/   02_normalize    02_5_time_window  03_sample  04_open_code  05_label    
 | 분석 | `run/06_1_select_k.py`, `run/06_analyze.py` | Wilson CI 유병률, PMI 네트워크 + Louvain, LCA(stepmix), 부트스트랩 안정성, KMeans 교차 확인 | `data/output/tables/` |
 | 추가 분석 | `run/07_extra.py` | 가격 앵커(금액 파싱), 스토어 상품 성과(Wilson CI), 대체재 경쟁 지도(lift·log-odds), 텍스트 Kano 추정(부트스트랩 안정성). API 호출 없음 | `data/output/tables/extra/` |
 | 추가 분석 2 | `run/07_2_extra.py` | 앱 리뷰 IPA(별점 회귀), JTBD 전환의 4가지 힘, FSD 구독 전환 중단 시계열, NMF 토픽 ↔ 코드북 검증, 대응 분석. API 호출 없음 | `data/output/tables/extra/` |
+| 종합 | `run/07_3_synthesis.py` | 기능별 FoD 후보 점수표(순위 평균 + 가중치 몬테카를로 민감도), 세그먼트별 FoD 처방 | `s1_scorecard.csv`, `s2_prescriptions.csv` |
+| 규칙 검증 | `pilot/rule_validation.py` | 키워드 규칙 판정 4종을 사람 정답 399건으로 정밀도·재현율 측정 | `v_rule_validation.csv` |
 | 보고서 | `run/08_report.py` | 단일 HTML. 최종 정리본(롯데마트 AI 페르소나 구조 참고) + 방법론 M1–M8(방법·변수·신뢰도·한계) | `data/output/report.html` |
 
 ### 코드북 (`config/codebook_v2.yaml`)
@@ -101,6 +103,7 @@ python run/06_analyze.py
 python run/06_analyze.py strict
 python run/07_extra.py
 python run/07_2_extra.py
+python run/07_3_synthesis.py
 python run/08_report.py
 ```
 
