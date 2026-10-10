@@ -3,6 +3,8 @@
   python run/04_open_code.py statements   # 표본 2,000건 결과 문장 (data/stage/open_statements.jsonl)
   python run/04_open_code.py induce       # 앞 절반으로 상황 코드별 3차 니즈 도출 (config/need_hierarchy_draft.yaml)
   python run/04_open_code.py saturation   # 뒤 절반을 배정, NEW 비율 보고
+  python run/04_open_code.py extra        # 얇은 코드 표적 보충(half=C)
+  python run/04_open_code.py induce all   # 전체(A+B+C)로 최종 도출
 """
 import json
 import os
@@ -94,9 +96,35 @@ def statements():
     print("→", out.relative_to(ROOT))
 
 
+THIN = ["S_PET", "S_INCAR_REST", "S_HANDOVER", "S_PARK_REMOTE", "S_ENTERTAIN", "S_FAMILY_SHARE",
+        "S_LONG_DRIVE", "S_PARK_TIGHT", "S_PARK_SKILL"]
+
+
+def extra(per_code=60):
+    """얇은 코드 표적 보충: seed_code가 해당 코드인 글에서 코드당 per_code건."""
+    done = {json.loads(l)["post_id"] for l in (STAGE / "open_statements.jsonl").open(encoding="utf-8")}
+    corpus = pd.read_parquet(STAGE / "corpus.parquet")
+    corpus = corpus[~corpus["post_id"].isin(done)]
+    picks = [corpus[corpus["seed_codes"].map(lambda x: code in list(x))].sample(frac=1, random_state=SEED).head(per_code)
+             for code in THIN]
+    rows = list(pd.concat(picks).drop_duplicates("post_id").itertuples())
+    c = client()
+    chunks = [rows[i:i + 20] for i in range(0, len(rows), 20)]
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        res = list(ex.map(lambda ch: ask(c, SYS_STMT, "\n\n".join(render(r) for r in ch), STMT_SCHEMA), chunks))
+    src = {r.post_id: r for r in rows}
+    with (STAGE / "open_statements.jsonl").open("a", encoding="utf-8") as f:
+        for data, _ in res:
+            for it in data["items"]:
+                if it["post_id"] in src:
+                    it.update({"half": "C", "source": src[it["post_id"]].source})
+                    f.write(json.dumps(it, ensure_ascii=False) + "\n")
+    report_cost(res)
+
+
 SYS_INDUCE = (
     "너는 고객 니즈 계층을 설계하는 연구자다. 같은 상황 코드에 속한 결과 문장 목록을 받는다. "
-    "서로 겹치지 않는 3차 니즈 2~7개로 묶어라. 각 니즈는:\n"
+    "서로 겹치지 않는 3차 니즈 2~5개로 묶어라(문장 20건 미만이면 2~3개). 각 니즈는:\n"
     "- id: 상황코드_N (예: S_PARK_TIGHT_1)\n- hashtag: '#'로 시작하는 6~14자 한국어 별칭, 롯데마트식 '#상황+정체성' 느낌 (예: #좁은칸탈출아빠, #문콕공포러)\n"
     "- name: 니즈 이름(명사구)\n- definition: 포함·제외 기준 한 문장\n- member_ids: 해당 문장 번호 목록\n"
     "전체의 3% 미만인 묶음은 만들지 말고 가장 가까운 니즈에 합친다. 어디에도 안 맞는 문장은 member_ids에서 빼라. 해법·기능명 금지."
@@ -108,7 +136,8 @@ INDUCE_SCHEMA = obj({"needs": {"type": "array", "items": obj({
 
 def induce():
     st = [json.loads(l) for l in (STAGE / "open_statements.jsonl").open(encoding="utf-8")]
-    st = [s for s in st if s["half"] == "A" and s["outcome"] and s["situation"] != "NONE"]
+    halves = {"A"} if len(sys.argv) < 3 or sys.argv[2] != "all" else {"A", "B", "C"}
+    st = [s for s in st if s["half"] in halves and s["outcome"] and s["situation"] != "NONE"]
     by = {}
     for s in st:
         by.setdefault(s["situation"], []).append(s)
@@ -168,4 +197,4 @@ def report_cost(res):
 
 
 if __name__ == "__main__":
-    {"statements": statements, "induce": induce, "saturation": saturation}[sys.argv[1]]()
+    {"statements": statements, "extra": extra, "induce": induce, "saturation": saturation}[sys.argv[1]]()

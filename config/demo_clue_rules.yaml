@@ -1,0 +1,25 @@
+# 데모 클루 규칙 (롯데마트 p7·p27~29 형식 차용, 입력 습관 단서는 쓰지 않음)
+# basis 우선순위: text(본문 자기 진술) > meta(차종·상품 메타) > channel(카페·블로그명). 집계 시 basis를 분리한다.
+# 정규식은 본문 기준. 여러 단계가 걸리면 priority가 작은 것을 쓴다.
+life_stage:
+  - {value: L_INFANT, priority: 1, pattern: '이유식|분유|신생아|돌\s?(아기|잔치)|\d{1,2}개월\s?(아기|아이|된)|유모차|카시트|어린이집|임신|임산부|둘째\s?(임신|생기)|아기\s?(태우|데리)'}
+  - {value: L_SCHOOLKID, priority: 2, pattern: '초등|초딩|학원|등하교|등교|하교|방학|중학생|중딩|고등학생|고딩|수능|고3|라이딩|픽업'}
+  - {value: L_NEWLYWED, priority: 3, pattern: '신혼|예비\s?(신랑|신부|부부)|결혼\s?(준비|하고|후)|상견례|웨딩'}
+  - {value: L_EMPTYNEST, priority: 4, pattern: '은퇴|퇴직|연금|손주|성인\s?자녀|대학생\s?(아들|딸|자녀)|부모님\s?(모시|병원)|어머니\s?모시|아버지\s?모시|시어머니\s?모시|(60|70)대\s?(아버지|어머니|부모)|노후'}
+  - {value: L_FIRSTCAR, priority: 5, pattern: '첫\s?차|사회\s?초년생|초보\s?운전|면허\s?(딴|따고)|자취|월급\s?\d|만\s?2\d세|20대'}
+gender:
+  - {value: G_F, pattern: '남편|신랑|시댁|시어머니|시아버지|맘\b|엄마인데|워킹맘|임신|임산부'}
+  - {value: G_M, pattern: '와이프|아내|마누라|집사람|장인|장모|처가|와잎'}
+channel_life_stage:  # 채널명 → 생애단계 (본문 단서가 없을 때만, basis=channel)
+  - {value: L_INFANT, pattern: '맘스홀릭|맘이베베|베이비|육아|카시트|브라이텍스|쌍둥이|아이와차'}
+  - {value: L_SCHOOLKID, pattern: '초등맘|중등맘|학부모|레몬테라스|사춘기'}
+  - {value: L_NEWLYWED, pattern: '결혼준비|웨딩|신혼'}
+  - {value: L_EMPTYNEST, pattern: '은퇴|노후|신중년|꽃중년|이노라이프|시니어|간병|치매'}
+  - {value: L_FIRSTCAR, pattern: '초보운전|운전의\s?정석|초보운전연구소'}
+ev:
+  - {value: EV, pattern: '전기차|EV\d|아이오닉|테슬라|모델\s?[3YSX]|코나\s?(EV|일렉)|니로\s?EV|충전|회생제동'}
+brand:
+  - {value: 현대, pattern: '현대|아반떼|쏘나타|그랜저|싼타페|투싼|팰리세이드|코나|캐스퍼|스타리아|아이오닉|넥쏘|블루링크|마이현대'}
+  - {value: 기아, pattern: '기아|K\d\b|쏘렌토|카니발|스포티지|셀토스|레이|모닝|니로|EV\d|기아\s?커넥트'}
+  - {value: 제네시스, pattern: '제네시스|G\d0\b|GV\d0\b|GV60'}
+  - {value: 수입, pattern: '테슬라|BMW|벤츠|아우디|볼보|폴스타|렉서스|토요타|BYD|포르쉐|폭스바겐'}
