@@ -262,6 +262,79 @@ if not jb.empty:
     S.append(("s9", "9. FoD 저니 장벽", "final", f"""<h2>9. FoD 저니 단계 × 태도 (전체 A층 {len(a):,}건)</h2>
 <table class="t heat"><thead><tr><th>단계</th>{head}</tr></thead><tbody>{body}</tbody></table>{method_link('m2')}"""))
 
+# ---------------- 추가 분석 (run/07_extra.py) ----------------
+X = T / "extra"
+won = lambda v: "" if pd.isna(v) else f"{v / 1e4:,.1f}만" if v >= 1e4 else f"{v:,.0f}"
+pct = lambda v: "" if pd.isna(v) else f"{v:.0%}"
+
+
+def tbl(df, cols, fmt={}):
+    head = "".join(f"<th>{e(h)}</th>" for _, h in cols)
+    body = "".join("<tr>" + "".join(f"<td>{e(fmt.get(c, str)(r[c]))}</td>" for c, _ in cols) + "</tr>" for _, r in df.iterrows())
+    return f'<table class="t"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>'
+
+
+if (X / "e1_price_anchors.csv").exists():
+    pa = csv("e1_price_anchors", X)
+    pa = pa[pa.n_mentions >= 10].sort_values("n_mentions", ascending=False)
+    S.append(("x1", "E1. 가격 앵커", "extra", f"""<h2>E1. 사람들이 말하는 기능 가격 (가격 앵커)</h2>
+<p>본문에서 기능 이름 앞뒤 60자 안에 있는 금액 표현을 뽑았습니다(1천 원~500만 원, 언급 10건 이상만). '기간 미상'에는 선택 사양·용품 가격이 섞여 있습니다.</p>
+<div class="ins"><b>테슬라 FSD 월 15만 원 전환(2026-08)이 가장 큰 가격 기준점</b>주행 보조 가격 언급의 대부분이 이 소식이고, 반응이 있는 글의 약 65%가 '비싸다'입니다. 커넥티드 서비스는 월 5,500~9,900원, 원격 주차 평생 이용권은 50만 원이 반복해서 나옵니다.</div>
+{tbl(pa, [("feature", "기능"), ("period", "기간"), ("n_posts", "글"), ("p25", "하위 25%"), ("median", "중앙값"), ("p75", "상위 25%"), ("n_reaction", "반응 글"), ("expensive_share", "'비싸다' 비율")],
+     {"p25": won, "median": won, "p75": won, "expensive_share": pct})}{method_link('m9')}"""))
+
+if (X / "e2_store_by_group.csv").exists():
+    sg, sv, sp = csv("e2_store_by_group", X), csv("e2_store_by_vehicle", X), csv("e2_store_by_product", X)
+    sg = sg[sg.n >= 10]
+    iss = ["적용·설치 실패", "호환·차종 차이", "가격·결제", "디자인 만족", "기능 효용"]
+    S.append(("x2", "E2. 스토어 상품 성과", "extra", f"""<h2>E2. 기아 커넥트 스토어 상품 성과 (리뷰 {int(sg.n.sum()):,}건)</h2>
+<div class="ins"><b>테마는 '디자인', 기능형은 '효용'으로 만족 — 불만은 사용 단계에 몰림</b>원격 주차의 부정 비율(11%)은 테마(6%)의 두 배 가까이이고, 가격·결제 언급이 17%로 가장 높습니다. 스트리밍은 표본이 작지만(12건) 부정이 압도적입니다.</div>
+{tbl(sg, [("group", "상품군"), ("n", "리뷰"), ("neg_share", "부정"), ("neg_ci_lo", "부정 95% 하한"), ("neg_ci_hi", "상한"), ("pos_share", "긍정")] + [(c, c) for c in iss] + [("neg_top_journey", "부정 글의 저니 단계")],
+     {c: pct for c in ["neg_share", "neg_ci_lo", "neg_ci_hi", "pos_share"] + iss})}
+<h4>차종별 (상위 12)</h4>{tbl(sv, [("vehicle", "차종"), ("n", "리뷰"), ("neg_share", "부정"), ("neg_ci_lo", "95% 하한"), ("neg_ci_hi", "상한")], {c: pct for c in ["neg_share", "neg_ci_lo", "neg_ci_hi"]})}
+<h4>부정 비율이 높은 상품 (리뷰 20건 이상)</h4>{tbl(sp.head(8), [("group", "상품군"), ("product", "상품"), ("n", "리뷰"), ("neg_share", "부정")], {"neg_share": pct})}
+<p class="muted">Opposites United는 무료 테마라 '유료 고급판을 만들어 달라'는 요구가 부정으로 잡혔습니다.</p>{method_link('m10')}"""))
+
+if (X / "e3_sub_situation.csv").exists():
+    ss, spd, st, sx, sn = (csv(n, X) for n in ("e3_sub_situation", "e3_sub_products", "e3_sub_terms", "e3_sub_segment", "e3_sub_sentiment"))
+    SUB = {"aftermarket": "사제 용품", "diy": "직접 해결", "other_app": "다른 앱", "give_up": "포기"}
+    neg = dict(zip(sn.substitute, sn.neg_share))
+    cards = ""
+    for k, nm in SUB.items():
+        g = ss[ss.substitute == k]
+        if g.empty:
+            continue
+        cards += f"""<div class="idea"><small>n={int(g.n.iloc[0]):,} · 부정 {pct(neg.get(k))}</small><h4>{nm}</h4>
+<p><b>상황</b> {' · '.join(f"{r.situation_name.split(',')[0]} (lift {r.lift})" for r in g.head(3).itertuples())}</p>
+<p><b>대체 수단</b> {' · '.join(f"{r.product} {r.n}" for r in spd[spd.substitute == k].head(4).itertuples())}</p>
+<p><b>특징어</b> {' '.join(f'<span class="tag">{e(t)}</span>' for t in st[st.substitute == k].term.head(8))}</p></div>"""
+    sx = sx[sx.segment >= 0].copy()
+    sx["name"] = sx.segment.map(seg_name)
+    S.append(("x3", "E3. 대체재 경쟁 지도", "extra", f"""<h2>E3. FoD 대신 무엇으로 해결하나 (대체재 경쟁 지도)</h2>
+<div class="ins"><b>경쟁 상대는 다른 브랜드가 아니라 사제 용품과 티맵</b>사제 용품은 부정 17%로 만족스러운 대안이고, 다른 앱(티맵·카플레이)은 순정 내비 불만(부정 51%)에서 나옵니다. '포기'는 구독 해지·환불과 함께 나오고 부정이 66%로 가장 높습니다.</div>
+<div class="ideas">{cards}</div>
+<h4>세그먼트별 대체 유형</h4>{tbl(sx, [("name", "세그먼트"), ("n", "대체 글")] + [(k, v) for k, v in SUB.items()], {k: pct for k in SUB})}{method_link('m11')}"""))
+
+if (X / "e4_kano.csv").exists():
+    kn = csv("e4_kano", X)
+    th = json.loads((X / "e4_kano_thresholds.json").read_text())
+    W, H, P = 640, 380, 50
+    xm, ym = kn.absent_complaint.max() * 1.15, kn.present_delight.max() * 1.15
+    sx_ = lambda v: P + v / xm * (W - 2 * P)
+    sy_ = lambda v: H - P - v / ym * (H - 2 * P)
+    pts = "".join(f'<circle cx="{sx_(r.absent_complaint):.0f}" cy="{sy_(r.present_delight):.0f}" r="{4 + math.sqrt(r.n) / 8:.0f}" fill="var(--accent)" opacity=".55"/>'
+                  f'<text class="nl" x="{sx_(r.absent_complaint) + 6:.0f}" y="{sy_(r.present_delight) - 6:.0f}">{e(r.feature)}</text>' for r in kn.itertuples())
+    svg = f"""<svg class="net" viewBox="0 0 {W} {H}"><line x1="{sx_(th['absent_median']):.0f}" y1="{P}" x2="{sx_(th['absent_median']):.0f}" y2="{H - P}" stroke="var(--line)" stroke-dasharray="4"/>
+<line x1="{P}" y1="{sy_(th['delight_median']):.0f}" x2="{W - P}" y2="{sy_(th['delight_median']):.0f}" stroke="var(--line)" stroke-dasharray="4"/>
+<text class="nl" x="{W - P}" y="{P}" text-anchor="end">일원</text><text class="nl" x="{P + 4}" y="{P}">매력</text><text class="nl" x="{W - P}" y="{H - P - 4}" text-anchor="end">당연</text><text class="nl" x="{P + 4}" y="{H - P - 4}">무관심</text>
+<text class="nl" x="{W / 2}" y="{H - 12}" text-anchor="middle">없어서 불만 비율 →</text><text class="nl" x="14" y="{H / 2}" transform="rotate(-90 14 {H / 2})" text-anchor="middle">있어서 기쁨 비율 →</text>{pts}</svg>"""
+    S.append(("x4", "E4. Kano 추정", "extra", f"""<h2>E4. 텍스트로 추정한 Kano 분류와 유료화 반감</h2>
+<div class="ins"><b>열선·통풍은 '당연' + 유료화 반감 22% — FoD 후보에서 빼야 할 신호</b>테마·라이팅·영상은 '매력'으로 유료화 반감이 낮고, 원격 주차·회생 제동은 '일원'(있으면 만족, 없으면 불만)입니다. 디지털 키·주차 감시는 '당연'에 가까워 기본 탑재 기대가 큽니다.</div>
+{svg}
+{tbl(kn, [("feature", "기능"), ("n", "언급 글"), ("absent_complaint", "없어서 불만"), ("present_delight", "있어서 기쁨"), ("kano_class", "추정 분류"), ("boot_stability", "부트스트랩 안정성"), ("pay_resistance", "유료화 반감")],
+     {"absent_complaint": lambda v: f"{v:.1%}", "present_delight": lambda v: f"{v:.1%}", "pay_resistance": lambda v: f"{v:.1%}"})}
+<p class="muted">점선은 기능 간 중앙값. 안정성 0.7 미만 기능(원격 제어, 영상·게임, 캠핑 모드, OTA)은 분류가 경계에 있어 설문 Kano 문항으로 확정해야 합니다.</p>{method_link('m12')}"""))
+
 # ---------------- 방법·신뢰도 (논문형) ----------------
 def method(mid, title, methods, variables, reliability, limits):
     li = lambda xs: "".join(f"<li>{x}</li>" for x in xs)
@@ -348,8 +421,41 @@ S.append(method("m8", "M8. 한계와 주장 경계",
     ["온라인 글 작성자 편향(말 많은 사람·카페 활동층)", "네이버 데이터 약관 리스크와 삭제 일정",
      "카페 스니펫 위주(본문 미수집)", "연령·성별은 단서 기반 추정", "LLM 라벨·니즈 계층은 팀 검토 전"]))
 
+S.append(method("m9", "M9. 가격 앵커 추출 (E1)",
+    ["정규식으로 금액 표현 파싱(12,000원 · 12만 원 · 1만2천 원 · 1.2만 원), 1천 원~500만 원만 사용",
+     "금액 앞뒤 60자 안의 기능 사전(13개) 일치로 기능 배정, 금액 앞 12자의 '월·연·평생' 표현으로 기간 판정",
+     "같은 창의 '비싸다/부담'·'저렴/가성비' 표현으로 반응 판정"],
+    ["text, wtp_signal(라벨), 기능 사전(run/07_extra.py FEATURES)"],
+    ["파서 단위 검사 7종 통과", "기능·기간별 사분위수, 언급 10건 이상만 표시"],
+    ["창 안의 다른 금액(차값·옵션 묶음가)이 섞일 수 있음 — '기간 미상'은 해석 주의", "반응 판정 글이 적어(기능당 수~수십 건) '비싸다' 비율은 방향만 참고",
+     "같은 기사·글이 여러 카페에 퍼진 경우 중복 언급"]))
+
+S.append(method("m10", "M10. 스토어 상품 성과 (E2)",
+    ["기아 커넥트 스토어 리뷰를 상품군(테마·RSPA 2·스마트 회생+·라이팅·게임·스트리밍)과 차종으로 묶음",
+     "LLM 감성 라벨로 부정·긍정 비율, Wilson 95% 신뢰구간", "문제 유형 5개는 키워드 규칙, 부정 글의 저니 단계는 라벨"],
+    ["sentiment, journey, meta(product·category·vehicle)"],
+    ["상품군·차종별 부정 비율 Wilson CI 제시", "스토어 리뷰에는 별점이 없어 별점 기반 검증은 불가"],
+    ["리뷰를 남긴 구매자만 — 산 뒤 불만으로 리뷰를 안 쓴 사람, 사지 않은 사람은 없음", "리뷰 이벤트(쿠폰) 영향으로 긍정 쏠림 가능"]))
+
+S.append(method("m11", "M11. 대체재 경쟁 지도 (E3)",
+    ["substitute 라벨(사제·직접 해결·다른 앱·포기)별 상황 코드 비율과 lift(전체 대비)",
+     "대체 수단 사전 13개 일치 비율", "Kiwi 명사 + 균일 사전 log-odds z로 유형별 특징어", "세그먼트 × 대체 유형 교차표"],
+    ["substitute, situation, sentiment, segment(M6), text"],
+    ["lift > 2인 상황만 해석", "특징어 z > 8(빈도 5 이상)"],
+    ["'대체 없음'(none) 글이 대부분이라 대체 행동은 언급된 경우만", "세그먼트 미배정 글(-1)은 교차표에서 제외"]))
+
+S.append(method("m12", "M12. 텍스트 기반 Kano 추정 (E4)",
+    ["기능 언급 글에서 (부정 감성 + 기능 앞뒤 60자 안 '없어서·빠져·안 넣' 표현) = 없어서 불만, (긍정 감성 + '편하더라·꿀기능·만족' 표현) = 있어서 기쁨",
+     "두 비율을 기능 간 중앙값으로 나눠 4분면: 당연(불만↑기쁨↓)·매력(불만↓기쁨↑)·일원(둘 다↑)·무관심(둘 다↓)",
+     "부트스트랩 300회로 같은 분류가 나오는 비율 = 안정성", "유료화 반감 = 태도 라벨 HW잠금 반감·이중결제 반감 비율(Wilson CI)"],
+    ["sentiment, attitude, text, 기능 사전"],
+    ["분류 안정성 0.54~1.00 (0.7 미만 4개 기능은 경계)"],
+    ["정식 Kano는 기능 있음/없음 짝 질문이 필요 — 이 분류는 가설이며 설문으로 확정", "기준이 기능 간 상대값(중앙값)이라 '절대적으로 당연'이라는 뜻이 아님",
+     "불만·기쁨 비율이 1~10%로 작아 표현 사전 범위에 민감"]))
+
 # ---------------- 페이지 조립 ----------------
 nav_final = "".join(f'<a href="#{i}" data-go="{i}">{e(t)}</a>' for i, t, g, _ in S if g == "final")
+nav_extra = "".join(f'<a href="#{i}" data-go="{i}">{e(t)}</a>' for i, t, g, _ in S if g == "extra")
 nav_method = "".join(f'<a href="#{i}" data-go="{i}">{e(t)}</a>' for i, t, g, _ in S if g == "method")
 panels = "".join(f'<section class="panel" id="{i}">{h}</section>' for i, _, _, h in S)
 title = NAR.get("title", "현대차 FoD 데이터 기반 페르소나")
@@ -380,7 +486,7 @@ details{{margin:10px 0}}summary{{cursor:pointer;font-weight:600}}.back{{display:
 .mlink{{display:inline-block;margin-top:10px;font-size:13px;color:var(--accent)}}
 @media (max-width:820px){{.wrap{{grid-template-columns:1fr}}nav{{position:static;height:auto}}main{{padding:16px}}.flow,.grid3,.tracks,.back{{grid-template-columns:1fr}}.card header{{flex-direction:column}}}}
 </style></head><body><div class="wrap"><nav><h1>{e(title)}</h1><p>생성 {pd.Timestamp.now():%Y-%m-%d %H:%M} · 텍스트 기반(설문 확정 전)</p>
-<b>최종 정리본</b>{nav_final}<b>방법·신뢰도</b>{nav_method}</nav><main>{panels}</main></div>
+<b>최종 정리본</b>{nav_final}<b>추가 분석</b>{nav_extra}<b>방법·신뢰도</b>{nav_method}</nav><main>{panels}</main></div>
 <script>
 const show=id=>{{document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on',p.id===id));document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.go===id));window.scrollTo(0,0)}};
 document.addEventListener('click',ev=>{{const a=ev.target.closest('[data-go]');if(a){{ev.preventDefault();history.replaceState(null,'','#'+a.dataset.go);show(a.dataset.go)}}}});

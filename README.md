@@ -53,6 +53,7 @@ pilot/   02_normalize    02_5_time_window  03_sample  04_open_code  05_label    
 | 라벨링 | `run/05_label.py` | Message Batches API, Haiku 5.5 medium, 10건 묶음, 구조화 출력, 근거 인용을 원문 부분 문자열로 검증 | `post_labels.parquet` |
 | 인구 단서 | `run/05_5_demo.py` | 규칙 기반 생애단계·성별 단서(본문/메타/채널 근거 분리) | `post_demo.parquet` |
 | 분석 | `run/06_1_select_k.py`, `run/06_analyze.py` | Wilson CI 유병률, PMI 네트워크 + Louvain, LCA(stepmix), 부트스트랩 안정성, KMeans 교차 확인 | `data/output/tables/` |
+| 추가 분석 | `run/07_extra.py` | 가격 앵커(금액 파싱), 스토어 상품 성과(Wilson CI), 대체재 경쟁 지도(lift·log-odds), 텍스트 Kano 추정(부트스트랩 안정성). API 호출 없음 | `data/output/tables/extra/` |
 | 보고서 | `run/08_report.py` | 단일 HTML. 최종 정리본(롯데마트 AI 페르소나 구조 참고) + 방법론 M1–M8(방법·변수·신뢰도·한계) | `data/output/report.html` |
 
 ### 코드북 (`config/codebook_v2.yaml`)
@@ -97,6 +98,7 @@ python run/05_5_demo.py
 python run/06_1_select_k.py
 python run/06_analyze.py
 python run/06_analyze.py strict
+python run/07_extra.py
 python run/08_report.py
 ```
 
