@@ -335,6 +335,82 @@ if (X / "e4_kano.csv").exists():
      {"absent_complaint": lambda v: f"{v:.1%}", "present_delight": lambda v: f"{v:.1%}", "pay_resistance": lambda v: f"{v:.1%}"})}
 <p class="muted">점선은 기능 간 중앙값. 안정성 0.7 미만 기능(원격 제어, 영상·게임, 캠핑 모드, OTA)은 분류가 경계에 있어 설문 Kano 문항으로 확정해야 합니다.</p>{method_link('m12')}"""))
 
+def scatter(df, xcol, ycol, label, W=640, H=400, P=50, color=None, xlab="", ylab="", xline=None, yline=None, size=None):
+    xs, ys = df[xcol], df[ycol]
+    x0, x1, y0, y1 = xs.min(), xs.max(), ys.min(), ys.max()
+    pad = lambda a, b: ((b - a) or 1) * 0.12
+    x0, x1, y0, y1 = x0 - pad(x0, x1), x1 + pad(x0, x1), y0 - pad(y0, y1), y1 + pad(y0, y1)
+    sx_ = lambda v: P + (v - x0) / (x1 - x0) * (W - 2 * P)
+    sy_ = lambda v: H - P - (v - y0) / (y1 - y0) * (H - 2 * P)
+    g = ""
+    if xline is not None:
+        g += f'<line x1="{sx_(xline):.0f}" y1="{P}" x2="{sx_(xline):.0f}" y2="{H - P}" stroke="var(--line)" stroke-dasharray="4"/>'
+    if yline is not None:
+        g += f'<line x1="{P}" y1="{sy_(yline):.0f}" x2="{W - P}" y2="{sy_(yline):.0f}" stroke="var(--line)" stroke-dasharray="4"/>'
+    for _, r in df.iterrows():
+        c = color(r) if color else "var(--accent)"
+        rad = size(r) if size else 6
+        g += (f'<circle cx="{sx_(r[xcol]):.0f}" cy="{sy_(r[ycol]):.0f}" r="{rad:.0f}" fill="{c}" opacity=".6"/>'
+              f'<text class="nl" x="{sx_(r[xcol]) + rad + 2:.0f}" y="{sy_(r[ycol]) + 3:.0f}">{e(r[label])}</text>')
+    g += f'<text class="nl" x="{W / 2}" y="{H - 12}" text-anchor="middle">{e(xlab)}</text><text class="nl" x="14" y="{H / 2}" transform="rotate(-90 14 {H / 2})" text-anchor="middle">{e(ylab)}</text>'
+    return f'<svg class="net" viewBox="0 0 {W} {H}">{g}</svg>'
+
+
+if (X / "e5_app_ipa.csv").exists():
+    meta2 = json.loads((X / "e5_e9_meta.json").read_text(encoding="utf-8"))
+    ipa = csv("e5_app_ipa", X)
+    m5 = meta2["e5"]
+    S.append(("x5", "E5. 앱 리뷰 IPA", "extra", f"""<h2>E5. 커넥티드 앱 리뷰 IPA (리뷰 {m5['n']:,}건, 평균 별점 {m5['mean_rating']})</h2>
+<div class="ins"><b>별점을 깎는 건 원격 제어 기능이 아니라 '연결·로그인·속도'</b>연결·통신, 로그인·인증, 속도·로딩 언급은 각각 별점을 약 0.65~0.74점 낮춥니다. 원격 제어 자체는 −0.09점으로 거의 영향이 없습니다. 커넥티드 관리자 페르소나의 '먹통' 불만은 기능이 아니라 기반(연결·인증) 문제입니다.</div>
+{scatter(ipa, "performance", "importance", "aspect", xlab="성과: 언급 리뷰 중 4~5점 비율 →", ylab="중요도: 별점 하락폭 →", xline=ipa.performance.mean(), yline=ipa.importance.mean(), size=lambda r: 4 + math.sqrt(r.n) / 6)}
+<p class="muted">오른쪽 위 = 유지, 왼쪽 위 = 집중 개선, 왼쪽 아래 = 낮은 우선순위, 오른쪽 아래 = 과잉. 점 크기 = 언급 수.</p>
+{tbl(ipa.sort_values("importance", ascending=False), [("aspect", "측면"), ("n", "언급"), ("coef", "별점 계수"), ("se", "표준오차"), ("mean_rating", "평균 별점"), ("performance", "4~5점 비율")], {"performance": pct})}{method_link('m13')}"""))
+
+if (X / "e6_forces.csv").exists():
+    fo = csv("e6_forces", X)
+    fb = lambda v: f'<div class="bar"><span style="width:{min(100, v * 150):.0f}%;background:var(--accent)"></span><em>{v:.0%}</em></div>'
+    fbn = lambda v: f'<div class="bar"><span style="width:{min(100, v * 150):.0f}%;background:var(--band)"></span><em>{v:.0%}</em></div>'
+    body = "".join(f"<tr><th>{e(r.feature)}<br><small>n={r.n:,}</small></th><td>{fb(r.push)}</td><td>{fb(r.pull)}</td><td>{fbn(r.anxiety)}</td><td>{fbn(r.habit)}</td><td><b>{r.net:+.2f}</b></td></tr>" for r in fo.itertuples())
+    S.append(("x6", "E6. 전환의 4가지 힘", "extra", f"""<h2>E6. 기능별 전환의 4가지 힘 (JTBD Forces of Progress)</h2>
+<p>살 쪽으로 미는 힘(불편 Push + 매력 Pull)과 붙잡는 힘(불안 Anxiety + 기존 습관·대안 Habit)을 기능별로 비교했습니다.</p>
+<div class="ins"><b>디지털 키는 '불편'이, 테마는 '매력'이 끌고 — 주행 보조는 '불안'이, 영상·주차 감시는 '기존 대안'이 막는다</b>주행 보조의 불안 41%는 대부분 망설임·본전 계산(FSD 가격)이고, 열선·통풍의 불안은 거의 전부 HW잠금 반감입니다. 주차 감시는 사제 블랙박스, 영상은 폰·태블릿이 이미 자리를 차지하고 있어 FoD가 이기려면 '갈아탈 이유'가 필요합니다.</div>
+<table class="t"><thead><tr><th>기능</th><th>Push 불편</th><th>Pull 매력</th><th>Anxiety 불안</th><th>Habit 대안</th><th>순힘</th></tr></thead><tbody>{body}</tbody></table>{method_link('m14')}"""))
+
+if (X / "e7_its_model.csv").exists():
+    wk, im = csv("e7_its_weekly", X), csv("e7_its_model", X)
+    wf = wk[(wk.grp == "FSD") & (wk.n >= 3)]
+    W_, H_, P_ = 640, 260, 40
+    xmin, xmax = wf.week.min(), wf.week.max()
+    sx_ = lambda v: P_ + (v - xmin) / ((xmax - xmin) or 1) * (W_ - 2 * P_)
+    sy_ = lambda v: H_ - P_ - v * (H_ - 2 * P_)
+    line = lambda col, c: f'<polyline fill="none" stroke="{c}" stroke-width="2" points="{" ".join(f"{sx_(r.week):.0f},{sy_(r[col]):.0f}" for _, r in wf.iterrows())}"/>'
+    svg = f"""<svg class="net" viewBox="0 0 {W_} {H_}"><line x1="{sx_(0):.0f}" y1="{P_}" x2="{sx_(0):.0f}" y2="{H_ - P_}" stroke="var(--fg)" stroke-dasharray="4"/>
+<text class="nl" x="{sx_(0) + 4:.0f}" y="{P_ + 10}">2026-08-10 FSD 월 구독 전환</text>{line("neg", "var(--accent)")}{line("anx", "var(--band)")}
+<text class="nl" x="{P_}" y="{H_ - 10}">주(전환일 기준) · 빨강 = 부정 비율 · 남색 = 불안 태도 비율</text></svg>"""
+    did = meta2["e7_did"]
+    S.append(("x7", "E7. FSD 구독 전환 시계열", "extra", f"""<h2>E7. 테슬라 FSD 월 구독 전환 전후 (중단 시계열)</h2>
+<div class="ins"><b>전환 발표 뒤 부정·불안이 '튀지' 않았다 — 통계적으로 유의한 변화 없음</b>FSD 글의 부정 비율 수준 변화 {im.query("outcome=='neg' and group=='FSD'").level_change.iloc[0]:+.3f} (표준오차 {im.query("outcome=='neg' and group=='FSD'").level_se.iloc[0]:.3f}), 비교 계열 대비 차이 {did['neg']:+.3f}. 일시불(904만 원) → 월 15만 원 전환이 '반발'보다 '계산'(구독 vs 일시불)으로 받아들여졌다는 해석과 맞습니다. 불안 비율은 전 0.60 → 후 0.45로 낮아졌지만 추세 안의 변화입니다.</div>
+{svg}
+{tbl(im, [("outcome", "결과"), ("group", "계열"), ("weeks", "주 수"), ("pre_mean", "전 평균"), ("post_mean", "후 평균"), ("level_change", "수준 변화"), ("level_se", "표준오차"), ("slope_change", "기울기 변화")])}{method_link('m15')}"""))
+
+if (X / "e8_topics.csv").exists():
+    tp = csv("e8_topics", X)
+    gaps = tp[(tp.purity < 0.3) | (tp.no_code_share >= 0.1)]
+    S.append(("x8", "E8. 토픽 ↔ 코드북 검증", "extra", f"""<h2>E8. 비지도 토픽(NMF 25개)으로 코드북 교차 검증</h2>
+<div class="ins"><b>토픽 대부분이 코드 하나에 대응 (NMI {meta2['e8_nmi']}) — 코드북 바깥 후보는 '보험 할인'과 '서비스 유료 전환'</b>아이·적재·테마·정비 토픽은 순도 0.8 이상으로 코드북과 잘 맞습니다. '자동차 보험·커넥티드 할인' 토픽은 돈 계산(S_COST)에 묶여 있어 커넥티드 데이터 기반 보험 할인(UBI)을 별도 상황 코드로 둘지 검토할 만합니다. '블루링크 무료 기간 종료·유료 전환' 토픽은 코드 없는 글이 13%로 저니(관리·정산)에만 잡힙니다.</div>
+<h4>코드북과 어긋나는 토픽 (순도 &lt;0.3 또는 코드 없음 ≥10%)</h4>
+{tbl(gaps, [("topic", "#"), ("n", "글"), ("words", "상위 단어"), ("dominant_name", "가장 많은 코드"), ("purity", "순도"), ("no_code_share", "코드 없음")], {"purity": pct, "no_code_share": pct})}
+<details><summary>전체 토픽 25개</summary>{tbl(tp, [("topic", "#"), ("n", "글"), ("words", "상위 단어"), ("dominant_name", "가장 많은 코드"), ("purity", "순도"), ("a_fod_share", "A층")], {"purity": pct, "a_fod_share": pct})}</details>{method_link('m16')}"""))
+
+if (X / "e9_ca_points.csv").exists():
+    ca = csv("e9_ca_points", X)
+    ca["nm"] = ca.apply(lambda r: LS_NAME.get(r.label, r.label) if r.kind == "who" else r["name"], axis=1)
+    inr = meta2["e9_inertia"]
+    S.append(("x9", "E9. 대응 분석", "extra", f"""<h2>E9. 누가 어떤 상황을 말하나 (대응 분석)</h2>
+<div class="ins"><b>가로축 = '가족' 대 '차 기술', 세로축 = '현대·기아 커넥티드' 대 '입문·전기차'</b>영유아·학령기 부모와 여성 단서는 아이 동승·적재와 함께 왼쪽에 모이고, 현대·기아는 개인화·원격 제어·내비와 위쪽에, 첫차·신혼은 주차 실력·교체 고민과 아래쪽에 모입니다. 부모 단서가 아이 동승·적재와 붙는 것은 아이 동승 부모 세그먼트와 일치하고, EV·수입 단서는 돈 계산·주행 보조·교체와 같은 쪽(구매 결정자 세그먼트의 상황)에 있습니다.</div>
+{scatter(ca, "x", "y", "nm", W=720, H=480, xlab=f"1축 ({inr[0]:.0%})", ylab=f"2축 ({inr[1]:.0%})", xline=0, yline=0, color=lambda r: "var(--band)" if r.kind == "who" else "var(--accent)", size=lambda r: 3 + math.sqrt(r.mass) * 18)}
+<p class="muted">남색 = 사람 단서(생애단계·성별·브랜드·EV), 빨강 = 상황 코드. 가까울수록 함께 나오는 경향. 1·2축 설명력 합 {inr[0] + inr[1]:.0%}.</p>{method_link('m17')}"""))
+
 # ---------------- 방법·신뢰도 (논문형) ----------------
 def method(mid, title, methods, variables, reliability, limits):
     li = lambda xs: "".join(f"<li>{x}</li>" for x in xs)
@@ -452,6 +528,44 @@ S.append(method("m12", "M12. 텍스트 기반 Kano 추정 (E4)",
     ["분류 안정성 0.54~1.00 (0.7 미만 4개 기능은 경계)"],
     ["정식 Kano는 기능 있음/없음 짝 질문이 필요 — 이 분류는 가설이며 설문으로 확정", "기준이 기능 간 상대값(중앙값)이라 '절대적으로 당연'이라는 뜻이 아님",
      "불만·기쁨 비율이 1~10%로 작아 표현 사전 범위에 민감"]))
+
+S.append(method("m13", "M13. 앱 리뷰 IPA (E5)",
+    ["마이현대·기아·MY GENESIS 앱 리뷰(Google Play·App Store) 별점 1~5를 종속변수로, 측면 10개 언급(키워드 사전) 더미를 독립변수로 OLS",
+     "중요도 = −계수(언급 시 별점 하락폭), 성과 = 언급 리뷰 중 4~5점 비율, 평균선으로 4분면 (Cheng·Shen·Bi 2022 Kano-IPA의 단순화)"],
+    ["rating, text(측면 사전 run/07_2_extra.py ASPECTS)"],
+    [f"R² = {meta2['e5']['r2'] if (X / 'e5_e9_meta.json').exists() else 'n/a'} — 측면 언급이 별점 변동의 일부만 설명(나머지는 측면 사전 밖 내용)", "계수 표준오차 0.05~0.12, 상위 3개 측면은 |t| > 8"],
+    ["앱 리뷰는 불만 쏠림(1점 50%)", "측면 언급 = 키워드 일치(문맥 미고려)", "속성별 감성이 아닌 언급 여부만 사용"]))
+
+S.append(method("m14", "M14. 전환의 4가지 힘 (E6)",
+    ["Moesta·Spiek의 Forces of Progress(Push + Pull > Anxiety + Habit)를 기존 라벨에 매핑",
+     "Push = 상황층 글 중 부정·강도 2 이상 / Pull = 요구·만족·SW진보 수용 태도 / Anxiety = 망설임·불신·귀속 우려·본전 계산·HW잠금·이중결제 반감 / Habit = 대체 행동(사제·직접·다른 앱)",
+     "기능 사전(13개) 언급 글 50건 이상인 기능만"],
+    ["layer, sentiment, intensity, attitude, substitute, text"],
+    ["힘별 비율은 한 글이 여러 힘에 동시에 들어갈 수 있음(합 ≠ 1)"],
+    ["매핑은 연구자 정의 — 원 이론은 전환 인터뷰 기반", "Push는 상황층 글에서, Pull·Anxiety는 주로 A층 태도에서 나와 층 구성 차이의 영향을 받음"]))
+
+S.append(method("m15", "M15. FSD 구독 전환 중단 시계열 (E7)",
+    ["사건: 2026-08-10 테슬라 국내 FSD 일시불 → 월 구독 전환. 전 26주·후 9주, 주별 집계(글 3건 이상 주만)",
+     "분절 회귀 y = β0 + β1·주 + β2·사후 + β3·주×사후, β2 = 수준 변화, β3 = 기울기 변화",
+     "비교 계열: 같은 기간 날짜 있는 다른 FoD 기능 글 → 수준 변화 차이(DiD 근사)"],
+    ["created_at(블로그·리뷰), sentiment, attitude"],
+    ["모든 수준 변화가 표준오차 안(유의하지 않음)"],
+    ["수집이 최신순 검색이라 최근 글이 과대 — 글 수가 아닌 비율만 사용", "자기상관 미보정 OLS 표준오차", "카페 글은 날짜가 없어 제외",
+     "비교 계열이 주행 보조가 아닌 다른 기능이라 평행 추세 가정이 약함"]))
+
+S.append(method("m16", "M16. 비지도 토픽 ↔ 코드북 (E8)",
+    ["Kiwi 명사(2자 이상) → TF-IDF(min_df 20, max_df 0.3) → NMF 25토픽(nndsvda, seed 고정)",
+     "글별 최대 가중 토픽과 첫 상황 코드의 NMI, 토픽별 지배 코드 순도·코드 없음 비율로 코드북 공백 탐지"],
+    ["text, situation, layer"],
+    [f"NMI = {meta2['e8_nmi'] if (X / 'e5_e9_meta.json').exists() else 'n/a'} (코드 23개·토픽 25개, 다중 라벨을 첫 코드로 단순화해 하한에 가까움)"],
+    ["BERTopic(문장 임베딩) 대비 의미 포착이 약함 — 한국어 SBERT 설치 시 교체 가능", "토픽 수 25는 고정(민감도 미검토)"]))
+
+S.append(method("m17", "M17. 대응 분석 (E9)",
+    ["사람 단서(생애단계·성별·브랜드·EV, 데모 트랙) × 상황 코드 상위 18개 교차표, 행 합 200 이상",
+     "표준화 잔차 행렬 SVD → 대칭 지도(행·열 주좌표)"],
+    ["post_demo(value), situation"],
+    [f"관성 설명력 1축 {meta2['e9_inertia'][0]:.0%} · 2축 {meta2['e9_inertia'][1]:.0%} · 3축 {meta2['e9_inertia'][2]:.0%}" if (X / 'e5_e9_meta.json').exists() else ""],
+    ["단서가 있는 글만(데모 트랙 커버리지 한계)", "한 글이 여러 단서·코드를 가지면 중복 계산", "대칭 지도에서 행-열 거리는 직접 해석하지 않고 방향만 해석"]))
 
 # ---------------- 페이지 조립 ----------------
 nav_final = "".join(f'<a href="#{i}" data-go="{i}">{e(t)}</a>' for i, t, g, _ in S if g == "final")
